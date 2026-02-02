@@ -72,7 +72,7 @@ elif menu == "Cadastrar Paciente":
                     st.success("Paciente cadastrado com sucesso!")
                 
                     # Recarregar a página para limpar o formulário
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(f"Erro ao salvar: {resultado}")
 
