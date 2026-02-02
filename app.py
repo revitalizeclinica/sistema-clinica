@@ -70,18 +70,11 @@ elif menu == "Cadastrar Paciente":
         
                 if resultado is True:
                     st.success("Paciente cadastrado com sucesso!")
-        
-                    # LIMPAR CAMPOS
-                    st.session_state["nome"] = ""
-                    st.session_state["cpf"] = ""
-                    st.session_state["telefone"] = ""
-                    st.session_state["email"] = ""
-                    st.session_state["contato_emergencia"] = ""
-                    st.session_state["observacoes"] = ""
-                    st.session_state["data_nascimento"] = date.today()
-
-        
+                
+                    # Recarregar a página para limpar o formulário
+                    st.experimental_rerun()
                 else:
                     st.error(f"Erro ao salvar: {resultado}")
+
 
 
