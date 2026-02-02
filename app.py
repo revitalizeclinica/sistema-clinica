@@ -43,12 +43,27 @@ elif menu == "Cadastrar Paciente":
         enviado = st.form_submit_button("Salvar")
     
         if enviado:
-            resultado = inserir_paciente(
-                nome,
-                cpf,
-                data_nascimento,
-                telefone,
-                email,
-                contato_emergencia,
-                observacoes
-            )
+
+            if not nome:
+                st.error("Nome é obrigatório!")
+        
+            elif not cpf:
+                st.error("CPF é obrigatório!")
+        
+            else:
+                resultado = inserir_paciente(
+                    nome,
+                    cpf,
+                    data_nascimento,
+                    telefone,
+                    email,
+                    contato_emergencia,
+                    observacoes
+                )
+        
+                if resultado is True:
+                    st.success("Paciente cadastrado com sucesso!")
+                else:
+                    st.error(f"Erro ao salvar: {resultado}")
+
+
