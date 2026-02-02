@@ -6,7 +6,7 @@ st.title("Sistema Revitalize - Clínica")
 
 menu = st.sidebar.selectbox(
     "Menu",
-    ["Início", "Cadastrar Paciente"]
+    ["Início", "Cadastrar Paciente", "Listar Pacientes"]
 )
 
 # Controle de mensagens após rerun
@@ -69,3 +69,25 @@ elif menu == "Cadastrar Paciente":
                 st.rerun()
             else:
                 st.error(f"Erro ao salvar: {resultado}")
+
+elif menu == "Listar Pacientes":
+
+    st.subheader("Pacientes Cadastrados")
+
+    filtro = st.text_input("Buscar por nome ou CPF")
+
+    from database import listar_pacientes
+
+    pacientes = listar_pacientes(filtro)
+
+    if not pacientes:
+        st.info("Nenhum paciente encontrado.")
+    else:
+        for p in pacientes:
+            st.write("---")
+            st.write(f"**Nome:** {p[1]}")
+            st.write(f"**CPF:** {p[2]}")
+            st.write(f"**Nascimento:** {p[3]}")
+            st.write(f"**Telefone:** {p[4]}")
+            st.write(f"**Email:** {p[5]}")
+
