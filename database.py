@@ -9,7 +9,7 @@ def get_connection():
         st.error(f"Erro ao conectar ao banco: {e}")
         return None
 
-def inserir_paciente(nome, data_nascimento, telefone, email, contato_emergencia, observacoes):
+def inserir_paciente(nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes):
     conn = get_connection()
     if conn is None:
         return False
@@ -19,11 +19,11 @@ def inserir_paciente(nome, data_nascimento, telefone, email, contato_emergencia,
 
         sql = """
         INSERT INTO paciente 
-        (nome, data_nascimento, telefone, email, contato_emergencia, observacoes)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        (nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
 
-        cur.execute(sql, (nome, data_nascimento, telefone, email, contato_emergencia, observacoes))
+        cur.execute(sql, (nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes))
         conn.commit()
 
         cur.close()
@@ -34,4 +34,5 @@ def inserir_paciente(nome, data_nascimento, telefone, email, contato_emergencia,
     except Exception as e:
         conn.close()
         return str(e)
+
 
