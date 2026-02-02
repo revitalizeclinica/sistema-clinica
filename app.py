@@ -72,8 +72,14 @@ elif menu == "Cadastrar Paciente":
                     st.success("Paciente cadastrado com sucesso!")
         
                     # LIMPAR CAMPOS
-                    for campo in ["nome", "cpf", "data_nascimento", "telefone", "email", "contato_emergencia", "observacoes"]:
-                        st.session_state[campo] = ""
+                    st.session_state["nome"] = ""
+                    st.session_state["cpf"] = ""
+                    st.session_state["telefone"] = ""
+                    st.session_state["email"] = ""
+                    st.session_state["contato_emergencia"] = ""
+                    st.session_state["observacoes"] = ""
+                    st.session_state["data_nascimento"] = date.today()
+
         
                 else:
                     st.error(f"Erro ao salvar: {resultado}")
