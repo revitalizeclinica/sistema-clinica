@@ -25,25 +25,30 @@ elif menu == "Cadastrar Paciente":
     with st.form("form_paciente"):
 
         nome = st.text_input("Nome completo")
-        data_nascimento = st.date_input("Data de nascimento")
+        cpf = st.text_input("CPF")
+    
+        data_nascimento = st.date_input(
+            "Data de nascimento",
+            min_value=None,
+            max_value=None,
+            value=None,
+            format="DD/MM/YYYY"
+        )
+    
         telefone = st.text_input("Telefone")
         email = st.text_input("Email")
         contato_emergencia = st.text_input("Contato de emergência")
         observacoes = st.text_area("Observações")
-
+    
         enviado = st.form_submit_button("Salvar")
-
+    
         if enviado:
             resultado = inserir_paciente(
                 nome,
+                cpf,
                 data_nascimento,
                 telefone,
                 email,
                 contato_emergencia,
                 observacoes
             )
-
-            if resultado is True:
-                st.success("Paciente cadastrado com sucesso!")
-            else:
-                st.error(f"Erro ao salvar: {resultado}")
