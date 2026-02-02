@@ -13,6 +13,10 @@ menu = st.sidebar.selectbox(
 if "mensagem_sucesso" not in st.session_state:
     st.session_state.mensagem_sucesso = ""
 
+# Controle para resetar o formulário
+if "form_key" not in st.session_state:
+    st.session_state.form_key = 0
+
 if menu == "Início":
     st.write("Bem-vindo ao sistema da clínica!")
     conn = get_connection()
@@ -30,20 +34,20 @@ elif menu == "Cadastrar Paciente":
         st.success(st.session_state.mensagem_sucesso)
         st.session_state.mensagem_sucesso = ""
     
-    with st.form("form_paciente"):
-        nome = st.text_input("Nome completo", key="nome")
-        cpf = st.text_input("CPF", key="cpf")
+    # Usar uma key dinâmica para forçar a recriação do formulário
+    with st.form(key=f"form_paciente_{st.session_state.form_key}"):
+        nome = st.text_input("Nome completo")
+        cpf = st.text_input("CPF")
         data_nascimento = st.date_input(
             "Data de nascimento",
             min_value=date(1900, 1, 1),
             max_value=date.today(),
-            format="DD/MM/YYYY",
-            key="data_nascimento"
+            format="DD/MM/YYYY"
         )
-        telefone = st.text_input("Telefone", key="telefone")
-        email = st.text_input("Email", key="email")
-        contato_emergencia = st.text_input("Contato de emergência", key="contato_emergencia")
-        observacoes = st.text_area("Observações", key="observacoes")
+        telefone = st.text_input("Telefone")
+        email = st.text_input("Email")
+        contato_emergencia = st.text_input("Contato de emergência")
+        observacoes = st.text_area("Observações")
         
         enviado = st.form_submit_button("Salvar")
     
@@ -59,12 +63,8 @@ elif menu == "Cadastrar Paciente":
             )
             
             if resultado is True:
-                # Limpar os campos do formulário
-                for key in ["nome", "cpf", "data_nascimento", "telefone", 
-                           "email", "contato_emergencia", "observacoes"]:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                
+                # Incrementar a key do formulário para forçar recriação
+                st.session_state.form_key += 1
                 st.session_state.mensagem_sucesso = "Paciente cadastrado com sucesso!"
                 st.rerun()
             else:
