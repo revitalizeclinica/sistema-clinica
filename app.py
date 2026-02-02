@@ -1,5 +1,7 @@
 import streamlit as st
+from datetime import date
 from database import get_connection, inserir_paciente
+
 
 st.title("Sistema Revitalize - Clínica")
 
@@ -32,12 +34,12 @@ elif menu == "Cadastrar Paciente":
     
         data_nascimento = st.date_input(
             "Data de nascimento",
-            min_value=None,
-            max_value=None,
-            value=None,
+            min_value=date(1900, 1, 1),
+            max_value=date.today(),
             format="DD/MM/YYYY",
             key="data_nascimento"
         )
+
     
         telefone = st.text_input("Telefone", key="telefone")
         email = st.text_input("Email", key="email")
