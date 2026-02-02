@@ -23,7 +23,7 @@ elif menu == "Cadastrar Paciente":
     st.subheader("Cadastro de Paciente")
 
     if "reset_form" not in st.session_state:
-    st.session_state.reset_form = False
+        st.session_state.reset_form = False
     
     with st.form("form_paciente"):
 
