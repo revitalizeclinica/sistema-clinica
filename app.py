@@ -22,25 +22,30 @@ elif menu == "Cadastrar Paciente":
 
     st.subheader("Cadastro de Paciente")
 
+    if "reset_form" not in st.session_state:
+    st.session_state.reset_form = False
+    
     with st.form("form_paciente"):
 
-        nome = st.text_input("Nome completo")
-        cpf = st.text_input("CPF")
+        nome = st.text_input("Nome completo", key="nome")
+        cpf = st.text_input("CPF", key="cpf")
     
         data_nascimento = st.date_input(
             "Data de nascimento",
             min_value=None,
             max_value=None,
             value=None,
-            format="DD/MM/YYYY"
+            format="DD/MM/YYYY",
+            key="data_nascimento"
         )
     
-        telefone = st.text_input("Telefone")
-        email = st.text_input("Email")
-        contato_emergencia = st.text_input("Contato de emergência")
-        observacoes = st.text_area("Observações")
+        telefone = st.text_input("Telefone", key="telefone")
+        email = st.text_input("Email", key="email")
+        contato_emergencia = st.text_input("Contato de emergência", key="contato_emergencia")
+        observacoes = st.text_area("Observações", key="observacoes")
     
         enviado = st.form_submit_button("Salvar")
+
     
         if enviado:
 
@@ -63,6 +68,11 @@ elif menu == "Cadastrar Paciente":
         
                 if resultado is True:
                     st.success("Paciente cadastrado com sucesso!")
+        
+                    # LIMPAR CAMPOS
+                    for campo in ["nome", "cpf", "data_nascimento", "telefone", "email", "contato_emergencia", "observacoes"]:
+                        st.session_state[campo] = ""
+        
                 else:
                     st.error(f"Erro ao salvar: {resultado}")
 
