@@ -1,6 +1,13 @@
 import streamlit as st
 from datetime import date
-from database import get_connection, inserir_paciente, listar_pacientes
+from database import (
+    get_connection,
+    inserir_paciente,
+    listar_pacientes,
+    relatorio_paciente_agrupado,
+    relatorio_paciente_detalhado
+)
+
 
 st.title("Sistema Revitalize - Clínica")
 

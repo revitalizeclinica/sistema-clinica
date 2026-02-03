@@ -296,6 +296,34 @@ def relatorio_paciente(paciente_id, data_inicio, data_fim):
 
     return dados
 
+def relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    sql = """
+    SELECT
+        t.descricao,
+        COUNT(e.id) AS quantidade,
+        t.valor,
+        COUNT(e.id) * t.valor AS subtotal
+    FROM evolucao e
+    JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+    WHERE e.paciente_id = %s
+      AND e.data_registro BETWEEN %s AND %s
+    GROUP BY t.descricao, t.valor
+    ORDER BY t.descricao;
+    """
+
+    cur.execute(sql, (paciente_id, data_inicio, data_fim))
+    dados = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return dados
+
+
 def relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim):
 
     conn = get_connection()
@@ -320,6 +348,43 @@ def relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim):
     conn.close()
 
     return dados
+
+def relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim):
+
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT
+            t.descricao,
+            COUNT(e.id) AS quantidade,
+            t.valor,
+            COUNT(e.id) * t.valor AS subtotal
+        FROM evolucao e
+        JOIN tipo_atendimento t
+          ON e.tipo_atendimento_id = t.id
+        WHERE e.paciente_id = %s
+          AND e.data_registro BETWEEN %s AND %s
+        GROUP BY t.descricao, t.valor
+        ORDER BY t.descricao;
+        """
+
+        cur.execute(sql, (paciente_id, data_inicio, data_fim))
+        resultados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return resultados
+
+    except Exception:
+        conn.close()
+        return []
+
 
 
 
