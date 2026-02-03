@@ -10,12 +10,15 @@ def gerar_pdf_relatorio_paciente(nome_paciente, periodo, dados):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     largura, altura = A4
+    def preparar_pagina():
+        # Fundo
+        c.setFillColorRGB(1, 1, 0.9)
+        c.rect(0, 0, largura, altura, fill=1)
+        # Texto e traços em preto para não ficar invisível no fundo claro
+        c.setFillColorRGB(0, 0, 0)
+        c.setStrokeColorRGB(0, 0, 0)
 
-    # Fundo
-    c.setFillColorRGB(1, 1, 0.9)
-    c.rect(0, 0, largura, altura, fill=1)
-    # Texto em preto para não ficar invisível no fundo claro
-    c.setFillColorRGB(0, 0, 0)
+    preparar_pagina()
 
     # Logo
     logo_path = "assets/logo.png"
@@ -55,6 +58,7 @@ def gerar_pdf_relatorio_paciente(nome_paciente, periodo, dados):
 
         if y < 4 * cm:
             c.showPage()
+            preparar_pagina()
             y = altura - 3 * cm
 
     y -= 0.8 * cm
