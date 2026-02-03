@@ -211,30 +211,26 @@ elif menu == "Histórico do Paciente":
                         st.session_state.evolucao_aberta = e
 
             # Exibir detalhes APENAS se alguma evolução foi aberta
-            if st.session_state.evolucao_aberta:
+        if st.session_state.evolucao_aberta:
 
-                st.markdown("---")
-                st.subheader("Detalhes da Evolução")
+            st.markdown("---")
+            st.subheader("Detalhes da Evolução")
 
-                detalhe = st.session_state.evolucao_aberta
+            detalhe = st.session_state.evolucao_aberta
 
-                st.write(f"**Data:** {detalhe[1]}")
-                st.write(f"**Profissional:** {detalhe[2]}")
+            st.write(f"**Data:** {detalhe[1]}")
+            st.write(f"**Profissional:** {detalhe[2]}")
 
-                st.write("### Resumo da evolução")
-                st.write(detalhe[3])
+            def exibir_titulo_valor(titulo, valor):
+                st.write(f"### {titulo}")
+                st.write(valor if valor else "Não informado")
 
-                st.write("### Condutas realizadas")
-                st.write(detalhe[4])
+            exibir_titulo_valor("Resumo da evolução", detalhe[3])
+            exibir_titulo_valor("Condutas realizadas", detalhe[4])
+            exibir_titulo_valor("Resposta do paciente", detalhe[5])
+            exibir_titulo_valor("Objetivos", detalhe[6])
+            exibir_titulo_valor("Observações", detalhe[7])
 
-                st.write("### Resposta do paciente")
-                st.write(detalhe[5])
-
-                st.write("### Objetivos")
-                st.write(detalhe[6])
-
-                st.write("### Observações")
-                st.write(detalhe[7])
 
 
 

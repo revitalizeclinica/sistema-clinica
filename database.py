@@ -117,7 +117,15 @@ def listar_evolucoes_por_paciente(paciente_id):
         cur = conn.cursor()
 
         sql = """
-        SELECT id, data_registro, profissional, resumo_evolucao
+        SELECT 
+            id,
+            data_registro,
+            profissional,
+            resumo_evolucao,
+            condutas,
+            resposta_paciente,
+            objetivos,
+            observacoes
         FROM evolucao
         WHERE paciente_id = %s
         ORDER BY data_registro DESC
@@ -131,9 +139,10 @@ def listar_evolucoes_por_paciente(paciente_id):
 
         return resultados
 
-    except Exception:
+    except Exception as e:
         conn.close()
         return []
+
 
 
 
