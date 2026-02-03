@@ -335,24 +335,28 @@ elif menu == "Relatório por Paciente":
             if not dados:
                 st.info("Nenhum atendimento no período.")
             else:
-                import pandas as pd
-
-                # Criar DataFrame linha por linha para evitar erro
-                lista_dados = []
+                st.write(f"Total de registros: {len(dados)}")
+                
+                # Exibir os dados manualmente sem pandas primeiro
+                st.write("### Atendimentos por Tipo")
+                
+                total_geral = 0
+                
                 for row in dados:
-                    lista_dados.append({
-                        "Tipo de atendimento": row[0],
-                        "Quantidade": row[1],
-                        "Valor": row[2],
-                        "Subtotal": row[3]
-                    })
-
-                df = pd.DataFrame(lista_dados)
-
-                st.dataframe(df, use_container_width=True)
-
-                total = sum(row[3] for row in dados)
-                st.markdown(f"### 💰 Total do período: **R$ {total:.2f}**")
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.write(f"**{row[0]}**")
+                    with col2:
+                        st.write(f"Qtd: {row[1]}")
+                    with col3:
+                        st.write(f"Valor: R$ {row[2]:.2f}")
+                    with col4:
+                        st.write(f"Subtotal: R$ {row[3]:.2f}")
+                    
+                    total_geral += row[3]
+                    st.markdown("---")
+                
+                st.markdown(f"### 💰 Total do período: **R$ {total_geral:.2f}**")
 
 
 
