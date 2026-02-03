@@ -297,33 +297,82 @@ def relatorio_paciente(paciente_id, data_inicio, data_fim):
     return dados
 
 def relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim):
-
-    conn = get_connection()
-    cur = conn.cursor()
-
-    sql = """
-    SELECT
-        t.descricao,
-        COUNT(e.id) AS quantidade,
-        t.valor,
-        COUNT(e.id) * t.valor AS subtotal
-    FROM evolucao e
-    JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
-    WHERE e.paciente_id = %s
-      AND e.data_registro BETWEEN %s AND %s
-    GROUP BY t.descricao, t.valor
-    ORDER BY t.descricao;
     """
+    Relatório agrupado por tipo de atendimento.
+    Retorna quantidade e subtotal por tipo.
+    """
+    conn = get_connection()
+    if conn is None:
+        return []
 
-    cur.execute(sql, (paciente_id, data_inicio, data_fim))
-    dados = cur.fetchall()
+    try:
+        cur = conn.cursor()
 
-    cur.close()
-    conn.close()
+        sql = """
+        SELECT
+            t.descricao,
+            COUNT(e.id) AS quantidade,
+            t.valor,
+            COUNT(e.id) * t.valor AS subtotal
+        FROM evolucao e
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        WHERE e.paciente_id = %s
+          AND e.data_registro BETWEEN %s AND %s
+        GROUP BY t.descricao, t.valor
+        ORDER BY t.descricao;
+        """
 
-    return dados
+        cur.execute(sql, (paciente_id, data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception as e:
+        conn.close()
+        return []
+
 
 def relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim):
+    """
+    Relatório detalhado por paciente e período.
+    Retorna uma linha por atendimento (para PDF e visualização).
+    """
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT
+            e.data_registro,
+            t.descricao AS tipo_atendimento,
+            t.valor,
+            e.profissional,
+            e.resumo_evolucao
+        FROM evolucao e
+        JOIN tipo_atendimento t
+            ON e.tipo_atendimento_id = t.id
+        WHERE e.paciente_id = %s
+          AND e.data_registro BETWEEN %s AND %s
+        ORDER BY e.data_registro
+        """
+
+        cur.execute(sql, (paciente_id, data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception as e:
+        conn.close()
+        return []
 
     conn = get_connection()
     cur = conn.cursor()
@@ -348,41 +397,7 @@ def relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim):
 
     return dados
 
-def relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim):
 
-    conn = get_connection()
-    if conn is None:
-        return []
-
-    try:
-        cur = conn.cursor()
-
-        sql = """
-        SELECT
-            t.descricao,
-            COUNT(e.id) AS quantidade,
-            t.valor,
-            COUNT(e.id) * t.valor AS subtotal
-        FROM evolucao e
-        JOIN tipo_atendimento t
-          ON e.tipo_atendimento_id = t.id
-        WHERE e.paciente_id = %s
-          AND e.data_registro BETWEEN %s AND %s
-        GROUP BY t.descricao, t.valor
-        ORDER BY t.descricao;
-        """
-
-        cur.execute(sql, (paciente_id, data_inicio, data_fim))
-        resultados = cur.fetchall()
-
-        cur.close()
-        conn.close()
-
-        return resultados
-
-    except Exception:
-        conn.close()
-        return []
 
 
     

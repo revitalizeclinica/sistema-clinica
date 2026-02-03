@@ -330,7 +330,7 @@ elif menu == "Relatório por Paciente":
             data_fim = st.date_input("Data final")
 
         if st.button("Gerar relatório"):
-            dados = relatorio_paciente(paciente_id, data_inicio, data_fim)
+            dados = relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim)
 
             if not dados:
                 st.info("Nenhum atendimento no período.")
@@ -340,61 +340,22 @@ elif menu == "Relatório por Paciente":
                 df = pd.DataFrame(
                     dados,
                     columns=[
-                        "Data",
                         "Tipo de atendimento",
+                        "Quantidade",
                         "Valor",
-                        "Profissional",
-                        "Resumo"
+                        "Subtotal"
                     ]
                 )
 
                 st.dataframe(df, use_container_width=True)
 
-                total = df["Valor"].sum()
+                total = df["Subtotal"].sum()
                 st.markdown(f"### 💰 Total do período: **R$ {total:.2f}**")
 
 
 
 
 
-def relatorio_paciente(paciente_id, data_inicio, data_fim):
-    """
-    Relatório detalhado por paciente e período.
-    Retorna uma linha por atendimento (para PDF e visualização).
-    """
-    conn = get_connection()
-    if conn is None:
-        return []
-
-    try:
-        cur = conn.cursor()
-
-        sql = """
-        SELECT
-            e.data_registro,
-            t.descricao AS tipo_atendimento,
-            t.valor,
-            e.profissional,
-            e.resumo_evolucao
-        FROM evolucao e
-        JOIN tipo_atendimento t
-            ON e.tipo_atendimento_id = t.id
-        WHERE e.paciente_id = %s
-          AND e.data_registro BETWEEN %s AND %s
-        ORDER BY e.data_registro
-        """
-
-        cur.execute(sql, (paciente_id, data_inicio, data_fim))
-        dados = cur.fetchall()
-
-        cur.close()
-        conn.close()
-
-        return dados
-
-    except Exception as e:
-        conn.close()
-        return []
 
 
 
