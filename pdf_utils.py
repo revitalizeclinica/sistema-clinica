@@ -14,6 +14,8 @@ def gerar_pdf_relatorio_paciente(nome_paciente, periodo, dados):
     # Fundo
     c.setFillColorRGB(1, 1, 0.9)
     c.rect(0, 0, largura, altura, fill=1)
+    # Texto em preto para não ficar invisível no fundo claro
+    c.setFillColorRGB(0, 0, 0)
 
     # Logo
     logo_path = "assets/logo.png"
