@@ -171,7 +171,7 @@ elif menu == "Histórico do Paciente":
 
     from database import listar_pacientes, listar_evolucoes_por_paciente
 
-    # Controle de qual evolução está aberta
+    # Garantir que o estado existe
     if "evolucao_aberta" not in st.session_state:
         st.session_state.evolucao_aberta = None
 
@@ -181,7 +181,6 @@ elif menu == "Histórico do Paciente":
 
     if not pacientes:
         st.info("Nenhum paciente encontrado.")
-    
     else:
         opcoes = [f"{p[0]} - {p[1]} (CPF: {p[2]})" for p in pacientes]
 
@@ -211,7 +210,7 @@ elif menu == "Histórico do Paciente":
                     if st.button("Abrir", key=f"abrir_{e[0]}"):
                         st.session_state.evolucao_aberta = e
 
-            # Se alguma evolução foi selecionada
+            # Exibir detalhes APENAS se alguma evolução foi aberta
             if st.session_state.evolucao_aberta:
 
                 st.markdown("---")
@@ -222,8 +221,22 @@ elif menu == "Histórico do Paciente":
                 st.write(f"**Data:** {detalhe[1]}")
                 st.write(f"**Profissional:** {detalhe[2]}")
 
-                st.write("**Resumo da evolução:**")
+                st.write("### Resumo da evolução")
                 st.write(detalhe[3])
+
+                st.write("### Condutas realizadas")
+                st.write(detalhe[4])
+
+                st.write("### Resposta do paciente")
+                st.write(detalhe[5])
+
+                st.write("### Objetivos")
+                st.write(detalhe[6])
+
+                st.write("### Observações")
+                st.write(detalhe[7])
+
+
 
 
 
