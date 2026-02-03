@@ -137,6 +137,17 @@ elif menu == "Nova Evolução":
             data_registro = st.date_input("Data do atendimento")
             profissional = st.text_input("Profissional responsável")
 
+            from database import listar_tipos_atendimento
+
+            tipos = listar_tipos_atendimento()
+
+            opcoes = [f"{t[0]} - {t[2]}" for t in tipos]
+
+            tipo_escolhido = st.selectbox("Tipo de atendimento", opcoes)
+
+            tipo_id = int(tipo_escolhido.split(" - ")[0])
+
+
             resumo = st.text_area("Resumo da evolução")
             condutas = st.text_area("Condutas realizadas")
             resposta = st.text_area("Resposta do paciente")
@@ -152,6 +163,7 @@ elif menu == "Nova Evolução":
                 else:
                     resultado = inserir_evolucao(
                         paciente_id,
+                        tipo_id,
                         data_registro,
                         profissional,
                         resumo,
@@ -160,6 +172,7 @@ elif menu == "Nova Evolução":
                         objetivos,
                         observacoes
                     )
+
 
                     if resultado is True:
                         st.success("Evolução registrada com sucesso!")
@@ -199,10 +212,12 @@ elif menu == "Histórico do Paciente":
             st.write("### Registros")
 
             for e in evolucoes:
+
                 col1, col2, col3 = st.columns([2, 2, 1])
 
                 with col1:
                     st.write(f"**Data:** {e[1]}")
+                    st.write(f"**Tipo:** {e[3]}")
 
                 with col2:
                     st.write(f"**Profissional:** {e[2]}")
@@ -210,6 +225,7 @@ elif menu == "Histórico do Paciente":
                 with col3:
                     if st.button("Abrir", key=f"abrir_{e[0]}"):
                         st.session_state.evolucao_aberta = e
+
 
             # Exibir detalhes APENAS se alguma evolução foi aberta
         if st.session_state.evolucao_aberta:

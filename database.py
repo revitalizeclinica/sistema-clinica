@@ -71,7 +71,8 @@ def listar_pacientes(filtro=""):
         return []
     
 
-def inserir_evolucao(paciente_id, data_registro, profissional, resumo, condutas, resposta, objetivos, observacoes):
+def inserir_evolucao(paciente_id, tipo_id, data, profissional,
+                     resumo, condutas, resposta, objetivos, observacoes):
 
     conn = get_connection()
     if conn is None:
@@ -81,14 +82,23 @@ def inserir_evolucao(paciente_id, data_registro, profissional, resumo, condutas,
         cur = conn.cursor()
 
         sql = """
-        INSERT INTO evolucao
-        (paciente_id, data_registro, profissional, resumo_evolucao, condutas, resposta_paciente, objetivos, observacoes)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO evolucao (
+            paciente_id,
+            tipo_atendimento_id,
+            data_registro,
+            profissional,
+            resumo_evolucao,
+            condutas,
+            resposta_paciente,
+            objetivos,
+            observacoes
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """
 
         cur.execute(sql, (
             paciente_id,
-            data_registro,
+            tipo_id,
+            data,
             profissional,
             resumo,
             condutas,
@@ -107,6 +117,7 @@ def inserir_evolucao(paciente_id, data_registro, profissional, resumo, condutas,
         conn.close()
         return str(e)
 
+
 def listar_evolucoes_por_paciente(paciente_id):
 
     conn = get_connection()
@@ -118,17 +129,20 @@ def listar_evolucoes_por_paciente(paciente_id):
 
         sql = """
         SELECT 
-            id,
-            data_registro,
-            profissional,
-            resumo_evolucao,
-            condutas,
-            resposta_paciente,
-            objetivos,
-            observacoes
-        FROM evolucao
-        WHERE paciente_id = %s
-        ORDER BY data_registro DESC
+            e.id,
+            e.data_registro,
+            e.profissional,
+            t.descricao,
+            e.resumo_evolucao,
+            e.condutas,
+            e.resposta_paciente,
+            e.objetivos,
+            e.observacoes
+        FROM evolucao e
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        WHERE e.paciente_id = %s
+        ORDER BY e.data_registro DESC
+
         """
 
         cur.execute(sql, (paciente_id,))
@@ -226,6 +240,30 @@ def inserir_avaliacao(paciente_id, dados):
     except Exception as e:
         conn.close()
         return str(e)
+    
+def listar_tipos_atendimento():
+
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = "SELECT id, codigo, descricao FROM tipo_atendimento WHERE ativo = TRUE"
+
+        cur.execute(sql)
+        resultados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return resultados
+
+    except Exception:
+        conn.close()
+        return []
+
 
 
 
