@@ -323,7 +323,6 @@ def relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim):
 
     return dados
 
-
 def relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim):
 
     conn = get_connection()
@@ -385,6 +384,8 @@ def relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim):
         conn.close()
         return []
 
+
+    
 
 
 

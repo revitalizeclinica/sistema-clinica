@@ -357,128 +357,45 @@ elif menu == "Relatório por Paciente":
 
 
 
-# def relatorio_paciente(paciente_id, data_inicio, data_fim):
-#     """
-#     Relatório detalhado por paciente e período.
-#     Retorna uma linha por atendimento (para PDF e visualização).
-#     """
-#     conn = get_connection()
-#     if conn is None:
-#         return []
-
-#     try:
-#         cur = conn.cursor()
-
-#         sql = """
-#         SELECT
-#             e.data_registro,
-#             t.descricao AS tipo_atendimento,
-#             t.valor,
-#             e.profissional,
-#             e.resumo_evolucao
-#         FROM evolucao e
-#         JOIN tipo_atendimento t
-#             ON e.tipo_atendimento_id = t.id
-#         WHERE e.paciente_id = %s
-#           AND e.data_registro BETWEEN %s AND %s
-#         ORDER BY e.data_registro
-#         """
-
-#         cur.execute(sql, (paciente_id, data_inicio, data_fim))
-#         dados = cur.fetchall()
-
-#         cur.close()
-#         conn.close()
-
-#         return dados
-
-#     except Exception as e:
-#         conn.close()
-#         return []
-
-# def inserir_avaliacao(paciente_id, dados):
-
-#     conn = get_connection()
-#     if conn is None:
-#         return False
-
-#     try:
-#         cur = conn.cursor()
-
-#         sql = """
-#         INSERT INTO avaliacao_inicial (
-#             paciente_id,
-#             data_avaliacao,
-#             profissional,
-#             queixa_principal,
-#             diagnostico,
-#             historico,
-#             medicamentos,
-#             dor,
-#             mobilidade,
-#             forca,
-#             limitacoes,
-#             marcha,
-#             equilibrio,
-#             objetivos,
-#             plano_terapeutico
-#         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-#         """
-
-#         cur.execute(sql, (
-#             paciente_id,
-#             dados["data"],
-#             dados["profissional"],
-#             dados["queixa"],
-#             dados["diagnostico"],
-#             dados["historico"],
-#             dados["medicamentos"],
-#             dados["dor"],
-#             dados["mobilidade"],
-#             dados["forca"],
-#             dados["limitacoes"],
-#             dados["marcha"],
-#             dados["equilibrio"],
-#             dados["objetivos"],
-#             dados["plano"]
-#         ))
-
-#         conn.commit()
-#         cur.close()
-#         conn.close()
-
-#         return True
-
-#     except Exception as e:
-#         conn.close()
-#         return str(e)
-    
-# def buscar_avaliacao(paciente_id):
-
+def relatorio_paciente(paciente_id, data_inicio, data_fim):
+    """
+    Relatório detalhado por paciente e período.
+    Retorna uma linha por atendimento (para PDF e visualização).
+    """
     conn = get_connection()
     if conn is None:
-        return None
+        return []
 
     try:
         cur = conn.cursor()
 
         sql = """
-        SELECT *
-        FROM avaliacao_inicial
-        WHERE paciente_id = %s
+        SELECT
+            e.data_registro,
+            t.descricao AS tipo_atendimento,
+            t.valor,
+            e.profissional,
+            e.resumo_evolucao
+        FROM evolucao e
+        JOIN tipo_atendimento t
+            ON e.tipo_atendimento_id = t.id
+        WHERE e.paciente_id = %s
+          AND e.data_registro BETWEEN %s AND %s
+        ORDER BY e.data_registro
         """
 
-        cur.execute(sql, (paciente_id,))
-        resultado = cur.fetchone()
+        cur.execute(sql, (paciente_id, data_inicio, data_fim))
+        dados = cur.fetchall()
 
         cur.close()
         conn.close()
 
-        return resultado
+        return dados
 
-    except Exception:
+    except Exception as e:
         conn.close()
-        return None
+        return []
+
 
 
 
