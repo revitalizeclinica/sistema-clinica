@@ -76,13 +76,16 @@ elif menu == "Cadastrar Paciente":
         enviado = st.form_submit_button("Salvar")
     
     if enviado:
+        cpf_digits = "".join([c for c in cpf if c.isdigit()])
         if not nome:
             st.error("Nome é obrigatório!")
         elif not cpf:
             st.error("CPF é obrigatório!")
+        elif len(cpf_digits) != 11:
+            st.error("CPF deve ter 11 dígitos.")
         else:
             resultado = inserir_paciente(
-                nome, cpf, data_nascimento,
+                nome, cpf_digits, data_nascimento,
                 telefone, email, contato_emergencia, observacoes, solicita_nota
             )
             
@@ -155,11 +158,17 @@ elif menu == "Nova Evolução":
 
             tipos = listar_tipos_atendimento()
 
-            opcoes = [f"{t[0]} - {t[2]}" for t in tipos]
+            if not tipos:
+                st.info("Nenhum tipo de atendimento cadastrado.")
+                st.stop()
+
+            opcoes = ["Selecione o tipo de atendimento"] + [f"{t[0]} - {t[2]}" for t in tipos]
 
             tipo_escolhido = st.selectbox("Tipo de atendimento", opcoes)
 
-            tipo_id = int(tipo_escolhido.split(" - ")[0])
+            tipo_id = None
+            if tipo_escolhido != opcoes[0]:
+                tipo_id = int(tipo_escolhido.split(" - ")[0])
 
 
             resumo = st.text_area("Resumo da evolução")
@@ -174,6 +183,8 @@ elif menu == "Nova Evolução":
 
                 if not profissional:
                     st.error("Informe o nome do profissional.")
+                elif tipo_id is None:
+                    st.error("Selecione o tipo de atendimento.")
                 else:
                     resultado = inserir_evolucao(
                         paciente_id,

@@ -1,6 +1,7 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
 from io import BytesIO
 import os
 
@@ -32,17 +33,25 @@ def gerar_pdf_relatorio_paciente(nome_paciente, periodo, dados):
     logo_height = 4.5 * cm
 
     if logo_path:
-        x_logo = (largura - logo_width) / 2
-        y_logo = altura - topo_margem - logo_height
-        c.drawImage(
-            logo_path,
-            x_logo,
-            y_logo,
-            width=logo_width,
-            height=logo_height,
-            preserveAspectRatio=True
-        )
-        y = y_logo - 1.2 * cm
+        try:
+            logo_reader = ImageReader(logo_path)
+            img_w, img_h = logo_reader.getSize()
+            escala = min(logo_width / img_w, logo_height / img_h)
+            draw_w = img_w * escala
+            draw_h = img_h * escala
+            x_logo = (largura - draw_w) / 2
+            y_logo = altura - topo_margem - draw_h
+            c.drawImage(
+                logo_reader,
+                x_logo,
+                y_logo,
+                width=draw_w,
+                height=draw_h,
+                mask="auto"
+            )
+            y = y_logo - 1.2 * cm
+        except Exception:
+            y = altura - 4.0 * cm
     else:
         y = altura - 4.0 * cm
 
