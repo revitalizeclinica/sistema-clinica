@@ -20,12 +20,27 @@ def gerar_pdf_relatorio_paciente(nome_paciente, periodo, dados):
 
     preparar_pagina()
 
-    # Logo
-    logo_path = "assets/logo.png"
-    if os.path.exists(logo_path):
-        c.drawImage(logo_path, 5*cm, altura - 4*cm, width=6*cm, preserveAspectRatio=True)
+    # Logo (centralizado, abaixo da margem)
+    base_dir = os.path.dirname(__file__)
+    logo_path = os.path.normpath(os.path.join(base_dir, "..", "assets", "logo.png"))
+    topo_margem = 1.2 * cm
+    logo_width = 12 * cm
+    logo_height = 4.5 * cm
 
-    y = altura - 5.5 * cm
+    if os.path.exists(logo_path):
+        x_logo = (largura - logo_width) / 2
+        y_logo = altura - topo_margem - logo_height
+        c.drawImage(
+            logo_path,
+            x_logo,
+            y_logo,
+            width=logo_width,
+            height=logo_height,
+            preserveAspectRatio=True
+        )
+        y = y_logo - 1.2 * cm
+    else:
+        y = altura - 4.0 * cm
 
     # Título
     c.setFont("Helvetica-Bold", 14)
