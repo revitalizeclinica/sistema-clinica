@@ -45,7 +45,7 @@ def listar_pacientes(filtro=""):
 
         if filtro:
             sql = """
-            SELECT id, nome, cpf, data_nascimento, telefone, email
+            SELECT id, nome, cpf, TO_CHAR(data_nascimento, 'DD/MM/YYYY'), telefone, email
             FROM paciente
             WHERE nome ILIKE %s OR cpf ILIKE %s
             ORDER BY nome
@@ -53,7 +53,7 @@ def listar_pacientes(filtro=""):
             cur.execute(sql, (f"%{filtro}%", f"%{filtro}%"))
         else:
             sql = """
-            SELECT id, nome, cpf, data_nascimento, telefone, email
+            SELECT id, nome, cpf, TO_CHAR(data_nascimento, 'DD/MM/YYYY'), telefone, email
             FROM paciente
             ORDER BY nome
             """

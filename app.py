@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import date
-from database import get_connection, inserir_paciente
+from database import get_connection, inserir_paciente, listar_pacientes
 
 st.title("Sistema Revitalize - Clínica")
 
@@ -75,19 +75,20 @@ elif menu == "Listar Pacientes":
     st.subheader("Pacientes Cadastrados")
 
     filtro = st.text_input("Buscar por nome ou CPF")
+    st.caption("Digite parte do nome ou CPF para filtrar")
 
-    from database import listar_pacientes
 
     pacientes = listar_pacientes(filtro)
 
     if not pacientes:
         st.info("Nenhum paciente encontrado.")
     else:
-        for p in pacientes:
-            st.write("---")
-            st.write(f"**Nome:** {p[1]}")
-            st.write(f"**CPF:** {p[2]}")
-            st.write(f"**Nascimento:** {p[3]}")
-            st.write(f"**Telefone:** {p[4]}")
-            st.write(f"**Email:** {p[5]}")
+        import pandas as pd
+
+        df = pd.DataFrame(
+            pacientes,
+            columns=["ID", "Nome", "CPF", "Nascimento", "Telefone", "Email"]
+        )
+
+        st.dataframe(df, use_container_width=True)
 
