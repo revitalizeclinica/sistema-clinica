@@ -9,11 +9,12 @@ menu = st.sidebar.selectbox(
     [
         "Início",
         "Cadastrar Paciente",
-        "Listar Pacientes",
         "Nova Evolução",
-        "Histórico do Paciente"
+        "Histórico do Paciente",
+        "Avaliação Inicial"
     ]
 )
+
 
 
 # Controle de mensagens após rerun
@@ -230,6 +231,169 @@ elif menu == "Histórico do Paciente":
             exibir_titulo_valor("Resposta do paciente", detalhe[5])
             exibir_titulo_valor("Objetivos", detalhe[6])
             exibir_titulo_valor("Observações", detalhe[7])
+
+
+elif menu == "Avaliação Inicial":
+
+    st.subheader("Avaliação Clínica Inicial")
+
+    from database import listar_pacientes, inserir_avaliacao, buscar_avaliacao
+
+    filtro = st.text_input("Buscar paciente")
+
+    pacientes = listar_pacientes(filtro)
+
+    if not pacientes:
+        st.info("Nenhum paciente encontrado.")
+    else:
+        opcoes = [f"{p[0]} - {p[1]}" for p in pacientes]
+        escolha = st.selectbox("Selecione o paciente", opcoes)
+
+        paciente_id = int(escolha.split(" - ")[0])
+
+        existente = buscar_avaliacao(paciente_id)
+
+        if existente:
+            st.success("Este paciente já possui avaliação inicial cadastrada.")
+            st.write(existente)
+        else:
+            with st.form("form_avaliacao"):
+
+                data = st.date_input("Data da avaliação")
+                profissional = st.text_input("Profissional")
+
+                queixa = st.text_area("Queixa principal")
+                diagnostico = st.text_area("Diagnóstico")
+
+                historico = st.text_area("Histórico")
+                medicamentos = st.text_area("Medicamentos em uso")
+
+                dor = st.text_area("Avaliação da dor")
+                mobilidade = st.text_area("Mobilidade")
+                forca = st.text_area("Força muscular")
+                limitacoes = st.text_area("Limitações funcionais")
+                marcha = st.text_area("Marcha")
+                equilibrio = st.text_area("Equilíbrio")
+
+                objetivos = st.text_area("Objetivos do tratamento")
+                plano = st.text_area("Plano terapêutico")
+
+                salvar = st.form_submit_button("Salvar Avaliação")
+
+                if salvar:
+
+                    dados = {
+                        "data": data,
+                        "profissional": profissional,
+                        "queixa": queixa,
+                        "diagnostico": diagnostico,
+                        "historico": historico,
+                        "medicamentos": medicamentos,
+                        "dor": dor,
+                        "mobilidade": mobilidade,
+                        "forca": forca,
+                        "limitacoes": limitacoes,
+                        "marcha": marcha,
+                        "equilibrio": equilibrio,
+                        "objetivos": objetivos,
+                        "plano": plano
+                    }
+
+                    resultado = inserir_avaliacao(paciente_id, dados)
+
+                    if resultado is True:
+                        st.success("Avaliação cadastrada com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error(f"Erro ao salvar: {resultado}")
+
+
+
+def inserir_avaliacao(paciente_id, dados):
+
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        INSERT INTO avaliacao_inicial (
+            paciente_id,
+            data_avaliacao,
+            profissional,
+            queixa_principal,
+            diagnostico,
+            historico,
+            medicamentos,
+            dor,
+            mobilidade,
+            forca,
+            limitacoes,
+            marcha,
+            equilibrio,
+            objetivos,
+            plano_terapeutico
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """
+
+        cur.execute(sql, (
+            paciente_id,
+            dados["data"],
+            dados["profissional"],
+            dados["queixa"],
+            dados["diagnostico"],
+            dados["historico"],
+            dados["medicamentos"],
+            dados["dor"],
+            dados["mobilidade"],
+            dados["forca"],
+            dados["limitacoes"],
+            dados["marcha"],
+            dados["equilibrio"],
+            dados["objetivos"],
+            dados["plano"]
+        ))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+    
+def buscar_avaliacao(paciente_id):
+
+    conn = get_connection()
+    if conn is None:
+        return None
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT *
+        FROM avaliacao_inicial
+        WHERE paciente_id = %s
+        """
+
+        cur.execute(sql, (paciente_id,))
+        resultado = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        return resultado
+
+    except Exception:
+        conn.close()
+        return None
+
+
 
 
 
