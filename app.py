@@ -24,6 +24,8 @@ if "mensagem_sucesso" not in st.session_state:
 if "form_key" not in st.session_state:
     st.session_state.form_key = 0
 
+## Incio do menú
+
 if menu == "Início":
     st.write("Bem-vindo ao sistema da clínica!")
     conn = get_connection()
@@ -98,4 +100,64 @@ elif menu == "Listar Pacientes":
         )
 
         st.dataframe(df, use_container_width=True)
+
+elif menu == "Nova Evolução":
+
+    st.subheader("Registrar Nova Evolução")
+
+    from database import listar_pacientes, inserir_evolucao
+
+    filtro = st.text_input("Buscar paciente por nome ou CPF")
+
+    pacientes = listar_pacientes(filtro)
+
+    if not pacientes:
+        st.info("Nenhum paciente encontrado.")
+    else:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            pacientes,
+            columns=["ID", "Nome", "CPF", "Nascimento", "Telefone", "Email"]
+        )
+
+        st.dataframe(df, use_container_width=True)
+
+        paciente_id = st.number_input("Digite o ID do paciente", min_value=0)
+
+        if paciente_id:
+
+            with st.form("form_evolucao", clear_on_submit=True):
+
+                data_registro = st.date_input("Data do atendimento")
+                profissional = st.text_input("Profissional responsável")
+
+                resumo = st.text_area("Resumo da evolução")
+                condutas = st.text_area("Condutas realizadas")
+                resposta = st.text_area("Resposta do paciente")
+                objetivos = st.text_area("Objetivos para o próximo período")
+                observacoes = st.text_area("Observações adicionais")
+
+                enviado = st.form_submit_button("Salvar evolução")
+
+                if enviado:
+
+                    if not profissional:
+                        st.error("Informe o nome do profissional.")
+                    else:
+                        resultado = inserir_evolucao(
+                            paciente_id,
+                            data_registro,
+                            profissional,
+                            resumo,
+                            condutas,
+                            resposta,
+                            objetivos,
+                            observacoes
+                        )
+
+                        if resultado is True:
+                            st.success("Evolução registrada com sucesso!")
+                        else:
+                            st.error(f"Erro ao salvar: {resultado}")
 
