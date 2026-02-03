@@ -250,7 +250,12 @@ def listar_tipos_atendimento():
     try:
         cur = conn.cursor()
 
-        sql = "SELECT id, codigo, descricao FROM tipo_atendimento WHERE ativo = TRUE"
+        sql = """
+        SELECT id, codigo, descricao
+        FROM tipo_atendimento
+        WHERE ativo = TRUE
+        ORDER BY descricao
+        """
 
         cur.execute(sql)
         resultados = cur.fetchall()
@@ -260,9 +265,10 @@ def listar_tipos_atendimento():
 
         return resultados
 
-    except Exception:
+    except Exception as e:
         conn.close()
         return []
+
 
 
 
