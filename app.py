@@ -255,57 +255,33 @@ elif menu == "Avaliação Inicial":
 
         if existente:
             st.success("Este paciente já possui avaliação inicial cadastrada.")
-            st.write(existente)
-        else:
-            with st.form("form_avaliacao"):
 
-                data = st.date_input("Data da avaliação")
-                profissional = st.text_input("Profissional")
+            st.markdown("---")
+            st.subheader("Detalhes da Avaliação Inicial")
 
-                queixa = st.text_area("Queixa principal")
-                diagnostico = st.text_area("Diagnóstico")
+            st.write(f"**Data da avaliação:** {existente[2]}")
+            st.write(f"**Profissional:** {existente[3]}")
 
-                historico = st.text_area("Histórico")
-                medicamentos = st.text_area("Medicamentos em uso")
+            def mostrar_campo(titulo, valor):
+                st.write(f"### {titulo}")
+                st.write(valor if valor else "Não informado")
 
-                dor = st.text_area("Avaliação da dor")
-                mobilidade = st.text_area("Mobilidade")
-                forca = st.text_area("Força muscular")
-                limitacoes = st.text_area("Limitações funcionais")
-                marcha = st.text_area("Marcha")
-                equilibrio = st.text_area("Equilíbrio")
+            mostrar_campo("Queixa principal", existente[4])
+            mostrar_campo("Diagnóstico", existente[5])
 
-                objetivos = st.text_area("Objetivos do tratamento")
-                plano = st.text_area("Plano terapêutico")
+            mostrar_campo("Histórico", existente[6])
+            mostrar_campo("Medicamentos em uso", existente[7])
 
-                salvar = st.form_submit_button("Salvar Avaliação")
+            mostrar_campo("Avaliação da dor", existente[8])
+            mostrar_campo("Mobilidade", existente[9])
+            mostrar_campo("Força muscular", existente[10])
+            mostrar_campo("Limitações funcionais", existente[11])
+            mostrar_campo("Marcha", existente[12])
+            mostrar_campo("Equilíbrio", existente[13])
 
-                if salvar:
+            mostrar_campo("Objetivos do tratamento", existente[14])
+            mostrar_campo("Plano terapêutico", existente[15])
 
-                    dados = {
-                        "data": data,
-                        "profissional": profissional,
-                        "queixa": queixa,
-                        "diagnostico": diagnostico,
-                        "historico": historico,
-                        "medicamentos": medicamentos,
-                        "dor": dor,
-                        "mobilidade": mobilidade,
-                        "forca": forca,
-                        "limitacoes": limitacoes,
-                        "marcha": marcha,
-                        "equilibrio": equilibrio,
-                        "objetivos": objetivos,
-                        "plano": plano
-                    }
-
-                    resultado = inserir_avaliacao(paciente_id, dados)
-
-                    if resultado is True:
-                        st.success("Avaliação cadastrada com sucesso!")
-                        st.rerun()
-                    else:
-                        st.error(f"Erro ao salvar: {resultado}")
 
 
 
