@@ -300,58 +300,44 @@ elif menu == "Avaliação Inicial":
             mostrar_campo("Objetivos do tratamento", existente[14])
             mostrar_campo("Plano terapêutico", existente[15])
 
-elif menu == "Relatório por Paciente":
+def relatorio_paciente(paciente_id, data_inicio, data_fim):
+    """
+    Relatório detalhado por paciente e período.
+    Usado para geração de PDF de cobrança.
+    """
 
-    from database import listar_pacientes, relatorio_paciente
-    import pandas as pd
+    conn = get_connection()
+    if conn is None:
+        return []
 
-    pacientes = listar_pacientes("")
+    try:
+        cur = conn.cursor()
 
-    opcoes = [f"{p[0]} - {p[1]}" for p in pacientes]
-    escolha = st.selectbox("Paciente", opcoes)
-    paciente_id = int(escolha.split(" - ")[0])
+        sql = """
+        SELECT
+            e.data_registro,
+            t.descricao AS tipo_atendimento,
+            t.valor
+        FROM evolucao e
+        JOIN tipo_atendimento t
+          ON e.tipo_atendimento_id = t.id
+        WHERE e.paciente_id = %s
+          AND e.data_registro BETWEEN %s AND %s
+        ORDER BY e.data_registro;
+        """
 
-    col1, col2 = st.columns(2)
-    with col1:
-        data_inicio = st.date_input("Data inicial")
-    with col2:
-        data_fim = st.date_input("Data final")
+        cur.execute(sql, (paciente_id, data_inicio, data_fim))
+        resultados = cur.fetchall()
 
-    if st.button("Gerar relatório"):
+        cur.close()
+        conn.close()
 
-        dados = relatorio_paciente(paciente_id, data_inicio, data_fim)
+        return resultados
 
-        if not dados:
-            st.info("Nenhum atendimento no período.")
-        else:
-            df = pd.DataFrame(
-                dados,
-                columns=["Tipo de atendimento", "Quantidade", "Valor unitário", "Subtotal"]
-            )
+    except Exception:
+        conn.close()
+        return []
 
-            total = df["Subtotal"].sum()
-
-            st.dataframe(df, use_container_width=True)
-            st.markdown(f"### 💰 Total do período: **R$ {total:.2f}**")
-
-            from pdf_utils import gerar_pdf_relatorio_paciente
-
-            periodo = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
-            nome_paciente = escolha.split(" - ")[1]
-
-            pdf_buffer = gerar_pdf_relatorio_paciente(
-                nome_paciente,
-                periodo,
-                df,
-                total
-            )
-
-            st.download_button(
-                label="📄 Baixar relatório em PDF",
-                data=pdf_buffer,
-                file_name=f"relatorio_{nome_paciente.replace(' ', '_')}.pdf",
-                mime="application/pdf"
-            )
 
 
 
