@@ -143,6 +143,91 @@ def listar_evolucoes_por_paciente(paciente_id):
         conn.close()
         return []
 
+def buscar_avaliacao(paciente_id):
+
+    conn = get_connection()
+    if conn is None:
+        return None
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT *
+        FROM avaliacao_inicial
+        WHERE paciente_id = %s
+        """
+
+        cur.execute(sql, (paciente_id,))
+        resultado = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        return resultado
+
+    except Exception:
+        conn.close()
+        return None
+    
+def inserir_avaliacao(paciente_id, dados):
+
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        INSERT INTO avaliacao_inicial (
+            paciente_id,
+            data_avaliacao,
+            profissional,
+            queixa_principal,
+            diagnostico,
+            historico,
+            medicamentos,
+            dor,
+            mobilidade,
+            forca,
+            limitacoes,
+            marcha,
+            equilibrio,
+            objetivos,
+            plano_terapeutico
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """
+
+        cur.execute(sql, (
+            paciente_id,
+            dados["data"],
+            dados["profissional"],
+            dados["queixa"],
+            dados["diagnostico"],
+            dados["historico"],
+            dados["medicamentos"],
+            dados["dor"],
+            dados["mobilidade"],
+            dados["forca"],
+            dados["limitacoes"],
+            dados["marcha"],
+            dados["equilibrio"],
+            dados["objetivos"],
+            dados["plano"]
+        ))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+
+
 
 
 
