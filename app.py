@@ -334,6 +334,27 @@ elif menu == "Relatório por Paciente":
             st.dataframe(df, use_container_width=True)
             st.markdown(f"### 💰 Total do período: **R$ {total:.2f}**")
 
+            from pdf_utils import gerar_pdf_relatorio_paciente
+
+            periodo = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
+            nome_paciente = escolha.split(" - ")[1]
+
+            pdf_buffer = gerar_pdf_relatorio_paciente(
+                nome_paciente,
+                periodo,
+                df,
+                total
+            )
+
+            st.download_button(
+                label="📄 Baixar relatório em PDF",
+                data=pdf_buffer,
+                file_name=f"relatorio_{nome_paciente.replace(' ', '_')}.pdf",
+                mime="application/pdf"
+            )
+
+
+
 
 
 
