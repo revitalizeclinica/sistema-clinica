@@ -337,7 +337,6 @@ elif menu == "Relatório por Paciente":
             else:
                 st.write(f"Total de registros: {len(dados)}")
                 
-                # Exibir os dados manualmente sem pandas primeiro
                 st.write("### Atendimentos por Tipo")
                 
                 total_geral = 0
