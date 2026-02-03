@@ -123,41 +123,46 @@ elif menu == "Nova Evolução":
 
         st.dataframe(df, use_container_width=True)
 
-        paciente_id = st.number_input("Digite o ID do paciente", min_value=0)
+        # Criar lista de opções para seleção
+        opcoes = [f"{p[0]} - {p[1]} (CPF: {p[2]})" for p in pacientes]
 
-        if paciente_id:
+        escolha = st.selectbox("Selecione o paciente", opcoes)
 
-            with st.form("form_evolucao", clear_on_submit=True):
+        # Extrair o ID do paciente selecionado
+        paciente_id = int(escolha.split(" - ")[0])
 
-                data_registro = st.date_input("Data do atendimento")
-                profissional = st.text_input("Profissional responsável")
+        with st.form("form_evolucao", clear_on_submit=True):
 
-                resumo = st.text_area("Resumo da evolução")
-                condutas = st.text_area("Condutas realizadas")
-                resposta = st.text_area("Resposta do paciente")
-                objetivos = st.text_area("Objetivos para o próximo período")
-                observacoes = st.text_area("Observações adicionais")
+            data_registro = st.date_input("Data do atendimento")
+            profissional = st.text_input("Profissional responsável")
 
-                enviado = st.form_submit_button("Salvar evolução")
+            resumo = st.text_area("Resumo da evolução")
+            condutas = st.text_area("Condutas realizadas")
+            resposta = st.text_area("Resposta do paciente")
+            objetivos = st.text_area("Objetivos para o próximo período")
+            observacoes = st.text_area("Observações adicionais")
 
-                if enviado:
+            enviado = st.form_submit_button("Salvar evolução")
 
-                    if not profissional:
-                        st.error("Informe o nome do profissional.")
+            if enviado:
+
+                if not profissional:
+                    st.error("Informe o nome do profissional.")
+                else:
+                    resultado = inserir_evolucao(
+                        paciente_id,
+                        data_registro,
+                        profissional,
+                        resumo,
+                        condutas,
+                        resposta,
+                        objetivos,
+                        observacoes
+                    )
+
+                    if resultado is True:
+                        st.success("Evolução registrada com sucesso!")
                     else:
-                        resultado = inserir_evolucao(
-                            paciente_id,
-                            data_registro,
-                            profissional,
-                            resumo,
-                            condutas,
-                            resposta,
-                            objetivos,
-                            observacoes
-                        )
+                        st.error(f"Erro ao salvar: {resultado}")
 
-                        if resultado is True:
-                            st.success("Evolução registrada com sucesso!")
-                        else:
-                            st.error(f"Erro ao salvar: {resultado}")
 
