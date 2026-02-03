@@ -4,6 +4,7 @@ from database import (
     get_connection,
     inserir_paciente,
     listar_pacientes,
+    relatorio_paciente,
     relatorio_paciente_agrupado,
     relatorio_paciente_detalhado
 )
@@ -307,111 +308,152 @@ elif menu == "Avaliação Inicial":
             mostrar_campo("Objetivos do tratamento", existente[14])
             mostrar_campo("Plano terapêutico", existente[15])
 
-def relatorio_paciente(paciente_id, data_inicio, data_fim):
-    """
-    Relatório detalhado por paciente e período.
-    Retorna uma linha por atendimento (para PDF e visualização).
-    """
-    conn = get_connection()
-    if conn is None:
-        return []
+elif menu == "Relatório por Paciente":
 
-    try:
-        cur = conn.cursor()
+    st.subheader("Relatório por Paciente")
 
-        sql = """
-        SELECT
-            e.data_registro,
-            t.descricao AS tipo_atendimento,
-            t.valor,
-            e.profissional,
-            e.resumo_evolucao
-        FROM evolucao e
-        JOIN tipo_atendimento t
-            ON e.tipo_atendimento_id = t.id
-        WHERE e.paciente_id = %s
-          AND e.data_registro BETWEEN %s AND %s
-        ORDER BY e.data_registro
-        """
+    filtro = st.text_input("Buscar paciente por nome ou CPF")
+    pacientes = listar_pacientes(filtro)
 
-        cur.execute(sql, (paciente_id, data_inicio, data_fim))
-        dados = cur.fetchall()
+    if not pacientes:
+        st.info("Nenhum paciente encontrado.")
+    else:
+        opcoes = [f"{p[0]} - {p[1]} (CPF: {p[2]})" for p in pacientes]
+        escolha = st.selectbox("Selecione o paciente", opcoes)
 
-        cur.close()
-        conn.close()
+        paciente_id = int(escolha.split(" - ")[0])
 
-        return dados
+        col1, col2 = st.columns(2)
+        with col1:
+            data_inicio = st.date_input("Data inicial")
+        with col2:
+            data_fim = st.date_input("Data final")
 
-    except Exception as e:
-        conn.close()
-        return []
+        if st.button("Gerar relatório"):
+            dados = relatorio_paciente(paciente_id, data_inicio, data_fim)
+
+            if not dados:
+                st.info("Nenhum atendimento no período.")
+            else:
+                import pandas as pd
+
+                df = pd.DataFrame(
+                    dados,
+                    columns=[
+                        "Data",
+                        "Tipo de atendimento",
+                        "Valor",
+                        "Profissional",
+                        "Resumo"
+                    ]
+                )
+
+                st.dataframe(df, use_container_width=True)
+
+                total = df["Valor"].sum()
+                st.markdown(f"### 💰 Total do período: **R$ {total:.2f}**")
 
 
 
 
 
+# def relatorio_paciente(paciente_id, data_inicio, data_fim):
+#     """
+#     Relatório detalhado por paciente e período.
+#     Retorna uma linha por atendimento (para PDF e visualização).
+#     """
+#     conn = get_connection()
+#     if conn is None:
+#         return []
 
+#     try:
+#         cur = conn.cursor()
 
+#         sql = """
+#         SELECT
+#             e.data_registro,
+#             t.descricao AS tipo_atendimento,
+#             t.valor,
+#             e.profissional,
+#             e.resumo_evolucao
+#         FROM evolucao e
+#         JOIN tipo_atendimento t
+#             ON e.tipo_atendimento_id = t.id
+#         WHERE e.paciente_id = %s
+#           AND e.data_registro BETWEEN %s AND %s
+#         ORDER BY e.data_registro
+#         """
 
+#         cur.execute(sql, (paciente_id, data_inicio, data_fim))
+#         dados = cur.fetchall()
 
-def inserir_avaliacao(paciente_id, dados):
+#         cur.close()
+#         conn.close()
 
-    conn = get_connection()
-    if conn is None:
-        return False
+#         return dados
 
-    try:
-        cur = conn.cursor()
+#     except Exception as e:
+#         conn.close()
+#         return []
 
-        sql = """
-        INSERT INTO avaliacao_inicial (
-            paciente_id,
-            data_avaliacao,
-            profissional,
-            queixa_principal,
-            diagnostico,
-            historico,
-            medicamentos,
-            dor,
-            mobilidade,
-            forca,
-            limitacoes,
-            marcha,
-            equilibrio,
-            objetivos,
-            plano_terapeutico
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-        """
+# def inserir_avaliacao(paciente_id, dados):
 
-        cur.execute(sql, (
-            paciente_id,
-            dados["data"],
-            dados["profissional"],
-            dados["queixa"],
-            dados["diagnostico"],
-            dados["historico"],
-            dados["medicamentos"],
-            dados["dor"],
-            dados["mobilidade"],
-            dados["forca"],
-            dados["limitacoes"],
-            dados["marcha"],
-            dados["equilibrio"],
-            dados["objetivos"],
-            dados["plano"]
-        ))
+#     conn = get_connection()
+#     if conn is None:
+#         return False
 
-        conn.commit()
-        cur.close()
-        conn.close()
+#     try:
+#         cur = conn.cursor()
 
-        return True
+#         sql = """
+#         INSERT INTO avaliacao_inicial (
+#             paciente_id,
+#             data_avaliacao,
+#             profissional,
+#             queixa_principal,
+#             diagnostico,
+#             historico,
+#             medicamentos,
+#             dor,
+#             mobilidade,
+#             forca,
+#             limitacoes,
+#             marcha,
+#             equilibrio,
+#             objetivos,
+#             plano_terapeutico
+#         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+#         """
 
-    except Exception as e:
-        conn.close()
-        return str(e)
+#         cur.execute(sql, (
+#             paciente_id,
+#             dados["data"],
+#             dados["profissional"],
+#             dados["queixa"],
+#             dados["diagnostico"],
+#             dados["historico"],
+#             dados["medicamentos"],
+#             dados["dor"],
+#             dados["mobilidade"],
+#             dados["forca"],
+#             dados["limitacoes"],
+#             dados["marcha"],
+#             dados["equilibrio"],
+#             dados["objetivos"],
+#             dados["plano"]
+#         ))
+
+#         conn.commit()
+#         cur.close()
+#         conn.close()
+
+#         return True
+
+#     except Exception as e:
+#         conn.close()
+#         return str(e)
     
-def buscar_avaliacao(paciente_id):
+# def buscar_avaliacao(paciente_id):
 
     conn = get_connection()
     if conn is None:
