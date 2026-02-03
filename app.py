@@ -171,14 +171,18 @@ elif menu == "Histórico do Paciente":
 
     from database import listar_pacientes, listar_evolucoes_por_paciente
 
+    # Controle de qual evolução está aberta
+    if "evolucao_aberta" not in st.session_state:
+        st.session_state.evolucao_aberta = None
+
     filtro = st.text_input("Buscar paciente por nome ou CPF")
 
     pacientes = listar_pacientes(filtro)
 
     if not pacientes:
         st.info("Nenhum paciente encontrado.")
+    
     else:
-        # Criar lista de seleção
         opcoes = [f"{p[0]} - {p[1]} (CPF: {p[2]})" for p in pacientes]
 
         escolha = st.selectbox("Selecione o paciente", opcoes)
@@ -192,12 +196,35 @@ elif menu == "Histórico do Paciente":
         if not evolucoes:
             st.info("Nenhuma evolução registrada para este paciente.")
         else:
+            st.write("### Registros")
+
             for e in evolucoes:
+                col1, col2, col3 = st.columns([2, 2, 1])
+
+                with col1:
+                    st.write(f"**Data:** {e[1]}")
+
+                with col2:
+                    st.write(f"**Profissional:** {e[2]}")
+
+                with col3:
+                    if st.button("Abrir", key=f"abrir_{e[0]}"):
+                        st.session_state.evolucao_aberta = e
+
+            # Se alguma evolução foi selecionada
+            if st.session_state.evolucao_aberta:
+
                 st.markdown("---")
-                st.write(f"**Data:** {e[1]}")
-                st.write(f"**Profissional:** {e[2]}")
-                st.write("**Resumo:**")
-                st.write(e[3])
+                st.subheader("Detalhes da Evolução")
+
+                detalhe = st.session_state.evolucao_aberta
+
+                st.write(f"**Data:** {detalhe[1]}")
+                st.write(f"**Profissional:** {detalhe[2]}")
+
+                st.write("**Resumo da evolução:**")
+                st.write(detalhe[3])
+
 
 
 
