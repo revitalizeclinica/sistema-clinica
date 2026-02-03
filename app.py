@@ -165,4 +165,39 @@ elif menu == "Nova Evolução":
                     else:
                         st.error(f"Erro ao salvar: {resultado}")
 
+elif menu == "Histórico do Paciente":
+
+    st.subheader("Histórico de Evoluções")
+
+    from database import listar_pacientes, listar_evolucoes_por_paciente
+
+    filtro = st.text_input("Buscar paciente por nome ou CPF")
+
+    pacientes = listar_pacientes(filtro)
+
+    if not pacientes:
+        st.info("Nenhum paciente encontrado.")
+    else:
+        # Criar lista de seleção
+        opcoes = [f"{p[0]} - {p[1]} (CPF: {p[2]})" for p in pacientes]
+
+        escolha = st.selectbox("Selecione o paciente", opcoes)
+
+        paciente_id = int(escolha.split(" - ")[0])
+
+        st.write(f"**Paciente selecionado:** {escolha}")
+
+        evolucoes = listar_evolucoes_por_paciente(paciente_id)
+
+        if not evolucoes:
+            st.info("Nenhuma evolução registrada para este paciente.")
+        else:
+            for e in evolucoes:
+                st.markdown("---")
+                st.write(f"**Data:** {e[1]}")
+                st.write(f"**Profissional:** {e[2]}")
+                st.write("**Resumo:**")
+                st.write(e[3])
+
+
 
