@@ -337,19 +337,21 @@ elif menu == "Relatório por Paciente":
             else:
                 import pandas as pd
 
-                df = pd.DataFrame(
-                    dados,
-                    columns=[
-                        "Tipo de atendimento",
-                        "Quantidade",
-                        "Valor",
-                        "Subtotal"
-                    ]
-                )
+                # Criar DataFrame linha por linha para evitar erro
+                lista_dados = []
+                for row in dados:
+                    lista_dados.append({
+                        "Tipo de atendimento": row[0],
+                        "Quantidade": row[1],
+                        "Valor": row[2],
+                        "Subtotal": row[3]
+                    })
+
+                df = pd.DataFrame(lista_dados)
 
                 st.dataframe(df, use_container_width=True)
 
-                total = df["Subtotal"].sum()
+                total = sum(row[3] for row in dados)
                 st.markdown(f"### 💰 Total do período: **R$ {total:.2f}**")
 
 
