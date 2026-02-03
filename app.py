@@ -6,8 +6,15 @@ st.title("Sistema Revitalize - Clínica")
 
 menu = st.sidebar.selectbox(
     "Menu",
-    ["Início", "Cadastrar Paciente", "Listar Pacientes"]
+    [
+        "Início",
+        "Cadastrar Paciente",
+        "Listar Pacientes",
+        "Nova Evolução",
+        "Histórico do Paciente"
+    ]
 )
+
 
 # Controle de mensagens após rerun
 if "mensagem_sucesso" not in st.session_state:
