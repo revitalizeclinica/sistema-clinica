@@ -11,11 +11,11 @@ menu = st.sidebar.selectbox(
         "Cadastrar Paciente",
         "Nova Evolução",
         "Histórico do Paciente",
-        "Avaliação Inicial"
+        "Avaliação Inicial",
+        "Relatório por Paciente"
+
     ]
 )
-
-
 
 # Controle de mensagens após rerun
 if "mensagem_sucesso" not in st.session_state:
@@ -24,6 +24,8 @@ if "mensagem_sucesso" not in st.session_state:
 # Controle para resetar o formulário
 if "form_key" not in st.session_state:
     st.session_state.form_key = 0
+
+
 
 ## Incio do menú
 
@@ -297,6 +299,41 @@ elif menu == "Avaliação Inicial":
 
             mostrar_campo("Objetivos do tratamento", existente[14])
             mostrar_campo("Plano terapêutico", existente[15])
+
+elif menu == "Relatório por Paciente":
+
+    from database import listar_pacientes, relatorio_paciente
+    import pandas as pd
+
+    pacientes = listar_pacientes("")
+
+    opcoes = [f"{p[0]} - {p[1]}" for p in pacientes]
+    escolha = st.selectbox("Paciente", opcoes)
+    paciente_id = int(escolha.split(" - ")[0])
+
+    col1, col2 = st.columns(2)
+    with col1:
+        data_inicio = st.date_input("Data inicial")
+    with col2:
+        data_fim = st.date_input("Data final")
+
+    if st.button("Gerar relatório"):
+
+        dados = relatorio_paciente(paciente_id, data_inicio, data_fim)
+
+        if not dados:
+            st.info("Nenhum atendimento no período.")
+        else:
+            df = pd.DataFrame(
+                dados,
+                columns=["Tipo de atendimento", "Quantidade", "Valor unitário", "Subtotal"]
+            )
+
+            total = df["Subtotal"].sum()
+
+            st.dataframe(df, use_container_width=True)
+            st.markdown(f"### 💰 Total do período: **R$ {total:.2f}**")
+
 
 
 
