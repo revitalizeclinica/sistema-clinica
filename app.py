@@ -14,19 +14,28 @@ from pdf_utils import gerar_pdf_relatorio_paciente
 
 st.title("Sistema Revitalize - Clínica")
 
-menu = st.sidebar.selectbox(
+main_menu = st.sidebar.selectbox(
     "Menu",
     [
         "Início",
         "Cadastrar Paciente",
         "Nova Evolução",
         "Histórico do Paciente",
-        "Avaliação Inicial",
-        "Relatório por Paciente",
-        "Relatório para Contador"
-
+        "Avaliação Inicial"
     ]
 )
+
+st.sidebar.markdown("---")
+admin_menu = st.sidebar.selectbox(
+    "Administrativo",
+    [
+        "Selecione...",
+        "Relatório por Paciente",
+        "Relatório para Contador"
+    ]
+)
+
+menu = admin_menu if admin_menu != "Selecione..." else main_menu
 
 # Controle de mensagens após rerun
 if "mensagem_sucesso" not in st.session_state:
