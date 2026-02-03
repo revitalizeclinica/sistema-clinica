@@ -9,7 +9,7 @@ def get_connection():
         st.error(f"Erro ao conectar ao banco: {e}")
         return None
 
-def inserir_paciente(nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes):
+def inserir_paciente(nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes, solicita_nota=False):
     conn = get_connection()
     if conn is None:
         return False
@@ -19,11 +19,11 @@ def inserir_paciente(nome, cpf, data_nascimento, telefone, email, contato_emerge
 
         sql = """
         INSERT INTO paciente 
-        (nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        (nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes, solicita_nota)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
 
-        cur.execute(sql, (nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes))
+        cur.execute(sql, (nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes, solicita_nota))
         conn.commit()
 
         cur.close()
@@ -396,6 +396,47 @@ def relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim):
     conn.close()
 
     return dados
+
+
+def relatorio_contador(data_inicio, data_fim):
+    """
+    Relatório para contador: pacientes que solicitam nota fiscal no período.
+    Retorna uma linha por paciente com quantidade de atendimentos e total.
+    """
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT
+            p.id,
+            p.nome,
+            p.cpf,
+            COUNT(e.id) AS quantidade,
+            SUM(t.valor) AS total
+        FROM paciente p
+        JOIN evolucao e ON e.paciente_id = p.id
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        WHERE p.solicita_nota = TRUE
+          AND e.data_registro BETWEEN %s AND %s
+        GROUP BY p.id, p.nome, p.cpf
+        ORDER BY p.nome;
+        """
+
+        cur.execute(sql, (data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
 
 
 

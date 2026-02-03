@@ -6,8 +6,10 @@ from database import (
     listar_pacientes,
     relatorio_paciente,
     relatorio_paciente_agrupado,
-    relatorio_paciente_detalhado
+    relatorio_paciente_detalhado,
+    relatorio_contador
 )
+from pdf_utils import gerar_pdf_relatorio_paciente
 
 
 st.title("Sistema Revitalize - Clínica")
@@ -20,7 +22,8 @@ menu = st.sidebar.selectbox(
         "Nova Evolução",
         "Histórico do Paciente",
         "Avaliação Inicial",
-        "Relatório por Paciente"
+        "Relatório por Paciente",
+        "Relatório para Contador"
 
     ]
 )
@@ -68,6 +71,7 @@ elif menu == "Cadastrar Paciente":
         email = st.text_input("Email")
         contato_emergencia = st.text_input("Contato de emergência")
         observacoes = st.text_area("Observações")
+        solicita_nota = st.checkbox("Solicita nota fiscal?")
         
         enviado = st.form_submit_button("Salvar")
     
@@ -79,7 +83,7 @@ elif menu == "Cadastrar Paciente":
         else:
             resultado = inserir_paciente(
                 nome, cpf, data_nascimento,
-                telefone, email, contato_emergencia, observacoes
+                telefone, email, contato_emergencia, observacoes, solicita_nota
             )
             
             if resultado is True:
@@ -318,10 +322,12 @@ elif menu == "Relatório por Paciente":
     if not pacientes:
         st.info("Nenhum paciente encontrado.")
     else:
+        pacientes_por_id = {p[0]: p[1] for p in pacientes}
         opcoes = [f"{p[0]} - {p[1]} (CPF: {p[2]})" for p in pacientes]
         escolha = st.selectbox("Selecione o paciente", opcoes)
 
         paciente_id = int(escolha.split(" - ")[0])
+        nome_paciente = pacientes_por_id.get(paciente_id, "Paciente")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -329,7 +335,9 @@ elif menu == "Relatório por Paciente":
         with col2:
             data_fim = st.date_input("Data final")
 
-        if st.button("Gerar relatório"):
+        if data_fim < data_inicio:
+            st.error("A data final deve ser maior ou igual à data inicial.")
+        elif st.button("Gerar relatório"):
             dados = relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim)
 
             if not dados:
@@ -356,6 +364,58 @@ elif menu == "Relatório por Paciente":
                     st.markdown("---")
                 
                 st.markdown(f"### 💰 Total do período: **R$ {total_geral:.2f}**")
+
+            dados_detalhados = relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim)
+            if dados_detalhados:
+                dados_pdf = [(d[0], d[1], d[2]) for d in dados_detalhados]
+                periodo = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
+                pdf_buffer = gerar_pdf_relatorio_paciente(nome_paciente, periodo, dados_pdf)
+
+                st.download_button(
+                    "Baixar relatório do paciente (PDF)",
+                    data=pdf_buffer.getvalue(),
+                    file_name=f"relatorio_paciente_{paciente_id}_{data_inicio}_a_{data_fim}.pdf",
+                    mime="application/pdf"
+                )
+            else:
+                st.info("Sem dados para gerar o PDF do paciente.")
+
+
+elif menu == "Relatório para Contador":
+
+    st.subheader("Relatório para Contador")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        data_inicio = st.date_input("Data inicial")
+    with col2:
+        data_fim = st.date_input("Data final")
+
+    if data_fim < data_inicio:
+        st.error("A data final deve ser maior ou igual à data inicial.")
+    elif st.button("Gerar relatório do contador"):
+        dados = relatorio_contador(data_inicio, data_fim)
+
+        if not dados:
+            st.info("Nenhum paciente com nota fiscal no período.")
+        else:
+            import pandas as pd
+
+            df = pd.DataFrame(
+                dados,
+                columns=["ID", "Nome", "CPF", "Quantidade", "Total"]
+            )
+
+            st.dataframe(df, use_container_width=True)
+
+            csv_bytes = df.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
+
+            st.download_button(
+                "Baixar relatório do contador (CSV)",
+                data=csv_bytes,
+                file_name=f"relatorio_contador_{data_inicio}_a_{data_fim}.csv",
+                mime="text/csv"
+            )
 
 
 
