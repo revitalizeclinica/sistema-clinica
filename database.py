@@ -269,6 +269,61 @@ def listar_tipos_atendimento():
         conn.close()
         return []
 
+def listar_tipos_atendimento_com_valor():
+
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT id, codigo, descricao, valor
+        FROM tipo_atendimento
+        WHERE ativo = TRUE
+        ORDER BY descricao
+        """
+
+        cur.execute(sql)
+        resultados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return resultados
+
+    except Exception as e:
+        conn.close()
+        return []
+
+def atualizar_preco_tipo_atendimento(tipo_id, novo_valor):
+
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        UPDATE tipo_atendimento
+        SET valor = %s
+        WHERE id = %s
+        """
+
+        cur.execute(sql, (novo_valor, tipo_id))
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+
 def relatorio_paciente(paciente_id, data_inicio, data_fim):
 
     conn = get_connection()

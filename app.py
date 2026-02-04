@@ -51,7 +51,8 @@ admin_menu = st.sidebar.selectbox(
     [
         "Selecione...",
         "Relatório por Paciente",
-        "Relatório para Contador"
+        "Relatório para Contador",
+        "Atualizar Preços"
     ],
     key="admin_menu"
 )
@@ -466,6 +467,53 @@ elif menu == "Relatório para Contador":
                 mime="text/csv"
             )
 
+elif menu == "Atualizar Preços":
+
+    st.subheader("Atualizar Preços de Consultas")
+
+    if st.button("Voltar para Início", key="voltar_preco"):
+        st.session_state.nav_to = "Início"
+        st.rerun()
+
+    from database import listar_tipos_atendimento_com_valor, atualizar_preco_tipo_atendimento
+
+    tipos = listar_tipos_atendimento_com_valor()
+
+    if not tipos:
+        st.info("Nenhum tipo de atendimento encontrado.")
+    else:
+        import pandas as pd
+
+        df_tipos = pd.DataFrame(
+            tipos,
+            columns=["ID", "Código", "Descrição", "Valor"]
+        )
+
+        st.dataframe(df_tipos, use_container_width=True)
+
+        opcoes = [f"{t[0]} - {t[2]} (R$ {t[3]:.2f})" for t in tipos]
+        escolha = st.selectbox("Selecione o tipo de atendimento", opcoes)
+
+        tipo_id = int(escolha.split(" - ")[0])
+        tipo_dict = {t[0]: t for t in tipos}
+        valor_atual = float(tipo_dict[tipo_id][3])
+
+        novo_valor = st.number_input(
+            "Novo valor (R$)",
+            min_value=0.0,
+            value=valor_atual,
+            step=1.0,
+            format="%.2f"
+        )
+
+        if st.button("Atualizar preço", key="btn_atualizar_preco"):
+            resultado = atualizar_preco_tipo_atendimento(tipo_id, novo_valor)
+
+            if resultado is True:
+                st.success("Preço atualizado com sucesso!")
+                st.rerun()
+            else:
+                st.error(f"Erro ao atualizar: {resultado}")
 
 
 
