@@ -349,6 +349,11 @@ elif menu == "Relatório por Paciente":
 
     st.subheader("Relatório por Paciente")
 
+    if st.button("Voltar para Nova Evolução", key="voltar_rel_paciente"):
+        st.session_state.admin_menu = "Selecione..."
+        st.session_state.main_menu = "Nova Evolução"
+        st.rerun()
+
     filtro = st.text_input("Buscar paciente por nome ou CPF")
     pacientes = listar_pacientes(filtro)
 
@@ -417,6 +422,11 @@ elif menu == "Relatório por Paciente":
 elif menu == "Relatório para Contador":
 
     st.subheader("Relatório para Contador")
+
+    if st.button("Voltar para Nova Evolução", key="voltar_rel_contador"):
+        st.session_state.admin_menu = "Selecione..."
+        st.session_state.main_menu = "Nova Evolução"
+        st.rerun()
 
     col1, col2 = st.columns(2)
     with col1:
