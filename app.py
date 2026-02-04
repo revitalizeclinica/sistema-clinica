@@ -21,12 +21,19 @@ if "admin_menu" not in st.session_state:
     st.session_state.admin_menu = "Selecione..."
 if "nav_to" not in st.session_state:
     st.session_state.nav_to = None
+if "admin_authed" not in st.session_state:
+    st.session_state.admin_authed = False
+if "admin_reset" not in st.session_state:
+    st.session_state.admin_reset = False
 
 # Aplicar navegação pendente ANTES de criar os widgets
 if st.session_state.nav_to == "Início":
     st.session_state.main_menu = "Início"
     st.session_state.admin_menu = "Selecione..."
     st.session_state.nav_to = None
+if st.session_state.admin_reset:
+    st.session_state.admin_menu = "Selecione..."
+    st.session_state.admin_reset = False
 
 def on_main_menu_change():
     # Ao escolher uma opção do menu principal, sai do menu administrativo
@@ -46,16 +53,43 @@ main_menu = st.sidebar.selectbox(
 )
 
 st.sidebar.markdown("---")
-admin_menu = st.sidebar.selectbox(
-    "Administrativo",
-    [
-        "Selecione...",
-        "Relatório por Paciente",
-        "Relatório para Contador",
-        "Atualizar Preços"
-    ],
-    key="admin_menu"
-)
+st.sidebar.subheader("Administrativo")
+
+if not st.session_state.admin_authed:
+    senha_admin = st.sidebar.text_input("Senha", type="password", key="admin_pwd")
+    if st.sidebar.button("Entrar", key="admin_login"):
+        if senha_admin == "r3v1t4l1z3":
+            st.session_state.admin_authed = True
+            st.session_state.admin_pwd = ""
+            st.rerun()
+        else:
+            st.sidebar.error("Senha incorreta.")
+
+    if st.session_state.admin_menu != "Selecione...":
+        st.session_state.admin_menu = "Selecione..."
+
+    admin_menu = st.sidebar.selectbox(
+        "Administrativo",
+        ["Selecione..."],
+        key="admin_menu",
+        disabled=True
+    )
+else:
+    admin_menu = st.sidebar.selectbox(
+        "Administrativo",
+        [
+            "Selecione...",
+            "Relatório por Paciente",
+            "Relatório para Contador",
+            "Atualizar Preços"
+        ],
+        key="admin_menu"
+    )
+
+    if st.sidebar.button("Sair", key="admin_logout"):
+        st.session_state.admin_authed = False
+        st.session_state.admin_reset = True
+        st.rerun()
 
 menu = admin_menu if admin_menu != "Selecione..." else main_menu
 
