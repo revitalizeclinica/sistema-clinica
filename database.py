@@ -283,7 +283,7 @@ def relatorio_paciente(paciente_id, data_inicio, data_fim):
     FROM evolucao e
     JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
     WHERE e.paciente_id = %s
-      AND e.data_registro BETWEEN %s AND %s
+      AND e.data_registro::date BETWEEN %s AND %s
     GROUP BY t.descricao, t.valor
     ORDER BY t.descricao;
     """
@@ -317,7 +317,7 @@ def relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim):
         FROM evolucao e
         JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
         WHERE e.paciente_id = %s
-          AND e.data_registro BETWEEN %s AND %s
+          AND e.data_registro::date BETWEEN %s AND %s
         GROUP BY t.descricao, t.valor
         ORDER BY t.descricao;
         """
@@ -358,7 +358,7 @@ def relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim):
         JOIN tipo_atendimento t
             ON e.tipo_atendimento_id = t.id
         WHERE e.paciente_id = %s
-          AND e.data_registro BETWEEN %s AND %s
+          AND e.data_registro::date BETWEEN %s AND %s
         ORDER BY e.data_registro
         """
 
@@ -385,7 +385,7 @@ def relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim):
     FROM evolucao e
     JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
     WHERE e.paciente_id = %s
-      AND e.data_registro BETWEEN %s AND %s
+      AND e.data_registro::date BETWEEN %s AND %s
     ORDER BY e.data_registro;
     """
 
@@ -421,7 +421,7 @@ def relatorio_contador(data_inicio, data_fim):
         JOIN evolucao e ON e.paciente_id = p.id
         JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
         WHERE p.solicita_nota = TRUE
-          AND e.data_registro BETWEEN %s AND %s
+          AND e.data_registro::date BETWEEN %s AND %s
         GROUP BY p.id, p.nome, p.cpf
         ORDER BY p.nome;
         """
