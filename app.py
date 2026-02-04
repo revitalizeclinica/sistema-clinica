@@ -111,13 +111,23 @@ if "form_key" not in st.session_state:
 ## Incio do menú
 
 if menu == "Início":
-    st.write("Bem-vindo ao sistema da clínica!")
+    st.markdown(
+        "<h2 style='text-align:center;'>Bem-vindo ao sistema da clínica!</h2>",
+        unsafe_allow_html=True
+    )
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image("assets/logo.png", use_container_width=True)
+
     conn = get_connection()
-    if conn:
-        st.success("Conectado com sucesso ao Supabase!")
-        conn.close()
-    else:
-        st.error("Falha na conexão com o banco.")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if conn:
+            st.success("Conectado com sucesso ao Supabase!")
+            conn.close()
+        else:
+            st.error("Falha na conexão com o banco.")
 
 elif menu == "Cadastrar Paciente":
     st.subheader("Cadastro de Paciente")
@@ -553,6 +563,29 @@ elif menu == "Atualizar Preços":
                 st.rerun()
             else:
                 st.error(f"Erro ao atualizar: {resultado}")
+
+st.markdown(
+    """
+    <style>
+    .app-footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        text-align: center;
+        color: #6b7280;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 6px 0;
+        font-size: 0.85rem;
+        z-index: 9999;
+    }
+    </style>
+    <div class="app-footer">
+        Construído por Alan Alves | Contato: galves.alan@gmail.com
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 
 
