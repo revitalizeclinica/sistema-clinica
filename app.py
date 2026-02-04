@@ -12,6 +12,41 @@ from database import (
 from pdf_utils import gerar_pdf_relatorio_paciente
 
 
+def mask_cpf(cpf):
+    if cpf is None:
+        return ""
+    digits = "".join([c for c in str(cpf) if c.isdigit()])
+    if len(digits) < 2:
+        return "***"
+    return f"***.***.***-{digits[-2:]}"
+
+
+def mask_phone(telefone):
+    if telefone is None:
+        return ""
+    digits = "".join([c for c in str(telefone) if c.isdigit()])
+    if len(digits) <= 4:
+        return "****"
+    return f"{'*' * (len(digits) - 4)}{digits[-4:]}"
+
+
+def mask_email(email):
+    if not email:
+        return ""
+    if "@" not in email:
+        return email
+    nome, dominio = email.split("@", 1)
+    if len(nome) <= 1:
+        masked_nome = "*"
+    else:
+        masked_nome = nome[0] + "*" * (len(nome) - 1)
+    return f"{masked_nome}@{dominio}"
+
+
+def mask_nome(nome):
+    return nome or ""
+
+
 # Estado para controlar menus e permitir "voltar" do administrativo
 if "main_menu" not in st.session_state:
     st.session_state.main_menu = "Início"
@@ -194,8 +229,19 @@ elif menu == "Listar Pacientes":
     else:
         import pandas as pd
 
+        dados = []
+        for p in pacientes:
+            dados.append([
+                p[0],
+                mask_nome(p[1]),
+                mask_cpf(p[2]),
+                p[3],
+                mask_phone(p[4]),
+                mask_email(p[5])
+            ])
+
         df = pd.DataFrame(
-            pacientes,
+            dados,
             columns=["ID", "Nome", "CPF", "Nascimento", "Telefone", "Email"]
         )
 
@@ -215,7 +261,7 @@ elif menu == "Nova Evolução":
         st.info("Nenhum paciente encontrado.")
     else:
         # Criar lista de opções para seleção
-        opcoes = [f"{p[0]} - {p[1]} (CPF: {p[2]})" for p in pacientes]
+        opcoes = [f"{p[0]} - {p[1]} (CPF: {mask_cpf(p[2])})" for p in pacientes]
 
         escolha = st.selectbox("Selecione o paciente", opcoes)
 
@@ -300,7 +346,7 @@ elif menu == "Histórico do Paciente":
     if not pacientes:
         st.info("Nenhum paciente encontrado.")
     else:
-        opcoes = [f"{p[0]} - {p[1]} (CPF: {p[2]})" for p in pacientes]
+        opcoes = [f"{p[0]} - {p[1]} (CPF: {mask_cpf(p[2])})" for p in pacientes]
 
         escolha = st.selectbox("Selecione o paciente", opcoes)
 
@@ -417,7 +463,7 @@ elif menu == "Relatório por Paciente":
         st.info("Nenhum paciente encontrado.")
     else:
         pacientes_por_id = {p[0]: p[1] for p in pacientes}
-        opcoes = [f"{p[0]} - {p[1]} (CPF: {p[2]})" for p in pacientes]
+        opcoes = [f"{p[0]} - {p[1]} (CPF: {mask_cpf(p[2])})" for p in pacientes]
         escolha = st.selectbox("Selecione o paciente", opcoes)
 
         paciente_id = int(escolha.split(" - ")[0])
@@ -499,8 +545,18 @@ elif menu == "Relatório para Contador":
         else:
             import pandas as pd
 
+            dados_masked = []
+            for d in dados:
+                dados_masked.append([
+                    d[0],
+                    mask_nome(d[1]),
+                    mask_cpf(d[2]),
+                    d[3],
+                    d[4]
+                ])
+
             df = pd.DataFrame(
-                dados,
+                dados_masked,
                 columns=["ID", "Nome", "CPF", "Quantidade", "Total"]
             )
 
