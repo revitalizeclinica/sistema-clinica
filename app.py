@@ -25,6 +25,8 @@ if "admin_authed" not in st.session_state:
     st.session_state.admin_authed = False
 if "admin_reset" not in st.session_state:
     st.session_state.admin_reset = False
+if "admin_pwd_reset" not in st.session_state:
+    st.session_state.admin_pwd_reset = False
 
 # Aplicar navegação pendente ANTES de criar os widgets
 if st.session_state.nav_to == "Início":
@@ -34,6 +36,9 @@ if st.session_state.nav_to == "Início":
 if st.session_state.admin_reset:
     st.session_state.admin_menu = "Selecione..."
     st.session_state.admin_reset = False
+if st.session_state.admin_pwd_reset:
+    st.session_state.admin_pwd = ""
+    st.session_state.admin_pwd_reset = False
 
 def on_main_menu_change():
     # Ao escolher uma opção do menu principal, sai do menu administrativo
@@ -60,7 +65,7 @@ if not st.session_state.admin_authed:
     if st.sidebar.button("Entrar", key="admin_login"):
         if senha_admin == "r3v1t4l1z3":
             st.session_state.admin_authed = True
-            st.session_state.admin_pwd = ""
+            st.session_state.admin_pwd_reset = True
             st.rerun()
         else:
             st.sidebar.error("Senha incorreta.")
