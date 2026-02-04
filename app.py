@@ -214,15 +214,6 @@ elif menu == "Nova Evolução":
     if not pacientes:
         st.info("Nenhum paciente encontrado.")
     else:
-        import pandas as pd
-
-        df = pd.DataFrame(
-            pacientes,
-            columns=["ID", "Nome", "CPF", "Nascimento", "Telefone", "Email"]
-        )
-
-        st.dataframe(df, use_container_width=True)
-
         # Criar lista de opções para seleção
         opcoes = [f"{p[0]} - {p[1]} (CPF: {p[2]})" for p in pacientes]
 
@@ -574,16 +565,28 @@ st.markdown(
         left: 0;
         bottom: 0;
         width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
         text-align: center;
         color: #6b7280;
         background: rgba(255, 255, 255, 0.8);
-        padding: 6px 0;
+        padding: 8px 0;
         font-size: 0.85rem;
         z-index: 9999;
     }
+    .app-footer .footer-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        line-height: 1.2;
+    }
     </style>
     <div class="app-footer">
-        Desenvolvido por Alan Alves | Contato: galves.alan@gmail.com
+        <div class="footer-content">
+            <div>Desenvolvido por Alan Alves</div>
+            <div>Contato: galves.alan@gmail.com</div>
+        </div>
     </div>
     """,
     unsafe_allow_html=True
