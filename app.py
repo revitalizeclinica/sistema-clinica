@@ -338,6 +338,8 @@ elif menu == "Histórico do Paciente":
     # Garantir que o estado existe
     if "evolucao_aberta" not in st.session_state:
         st.session_state.evolucao_aberta = None
+    if "historico_paciente_id" not in st.session_state:
+        st.session_state.historico_paciente_id = None
 
     filtro = st.text_input("Buscar paciente por nome ou CPF")
 
@@ -351,6 +353,11 @@ elif menu == "Histórico do Paciente":
         escolha = st.selectbox("Selecione o paciente", opcoes)
 
         paciente_id = int(escolha.split(" - ")[0])
+
+        # Se trocou de paciente, limpar a evolução aberta
+        if st.session_state.historico_paciente_id != paciente_id:
+            st.session_state.evolucao_aberta = None
+            st.session_state.historico_paciente_id = paciente_id
 
         st.write(f"**Paciente selecionado:** {escolha}")
 
