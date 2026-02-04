@@ -227,21 +227,24 @@ elif menu == "Nova Evolução":
             data_registro = st.date_input("Data do atendimento")
             profissional = st.text_input("Profissional responsável")
 
-            from database import listar_tipos_atendimento
+            from database import listar_tipos_atendimento_com_valor
 
-            tipos = listar_tipos_atendimento()
+            tipos = listar_tipos_atendimento_com_valor()
 
             if not tipos:
                 st.info("Nenhum tipo de atendimento cadastrado.")
                 st.stop()
 
-            opcoes = ["Selecione o tipo de atendimento"] + [f"{t[0]} - {t[2]}" for t in tipos]
+            opcoes = ["Selecione o tipo de atendimento"] + [f"{t[0]} - {t[2]} (R$ {t[3]:.2f})" for t in tipos]
 
             tipo_escolhido = st.selectbox("Tipo de atendimento", opcoes)
 
             tipo_id = None
+            valor_cobrado = None
             if tipo_escolhido != opcoes[0]:
                 tipo_id = int(tipo_escolhido.split(" - ")[0])
+                tipo_dict = {t[0]: t for t in tipos}
+                valor_cobrado = float(tipo_dict[tipo_id][3])
 
 
             resumo = st.text_area("Resumo da evolução")
@@ -258,6 +261,8 @@ elif menu == "Nova Evolução":
                     st.error("Informe o nome do profissional.")
                 elif tipo_id is None:
                     st.error("Selecione o tipo de atendimento.")
+                elif valor_cobrado is None:
+                    st.error("Valor do atendimento não encontrado.")
                 else:
                     resultado = inserir_evolucao(
                         paciente_id,
@@ -268,7 +273,8 @@ elif menu == "Nova Evolução":
                         condutas,
                         resposta,
                         objetivos,
-                        observacoes
+                        observacoes,
+                        valor_cobrado
                     )
 
 

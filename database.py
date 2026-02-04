@@ -72,7 +72,7 @@ def listar_pacientes(filtro=""):
     
 
 def inserir_evolucao(paciente_id, tipo_id, data, profissional,
-                     resumo, condutas, resposta, objetivos, observacoes):
+                     resumo, condutas, resposta, objetivos, observacoes, valor_cobrado):
 
     conn = get_connection()
     if conn is None:
@@ -91,8 +91,9 @@ def inserir_evolucao(paciente_id, tipo_id, data, profissional,
             condutas,
             resposta_paciente,
             objetivos,
-            observacoes
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            observacoes,
+            valor_cobrado
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """
 
         cur.execute(sql, (
@@ -104,7 +105,8 @@ def inserir_evolucao(paciente_id, tipo_id, data, profissional,
             condutas,
             resposta,
             objetivos,
-            observacoes
+            observacoes,
+            valor_cobrado
         ))
 
         conn.commit()
@@ -333,13 +335,13 @@ def relatorio_paciente(paciente_id, data_inicio, data_fim):
     SELECT
         t.descricao,
         COUNT(e.id) AS quantidade,
-        t.valor,
-        COUNT(e.id) * t.valor AS subtotal
+        COALESCE(e.valor_cobrado, t.valor) AS valor,
+        COUNT(e.id) * COALESCE(e.valor_cobrado, t.valor) AS subtotal
     FROM evolucao e
     JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
     WHERE e.paciente_id = %s
       AND e.data_registro::date BETWEEN %s AND %s
-    GROUP BY t.descricao, t.valor
+    GROUP BY t.descricao, COALESCE(e.valor_cobrado, t.valor)
     ORDER BY t.descricao;
     """
 
@@ -367,13 +369,13 @@ def relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim):
         SELECT
             t.descricao,
             COUNT(e.id) AS quantidade,
-            t.valor,
-            COUNT(e.id) * t.valor AS subtotal
+            COALESCE(e.valor_cobrado, t.valor) AS valor,
+            COUNT(e.id) * COALESCE(e.valor_cobrado, t.valor) AS subtotal
         FROM evolucao e
         JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
         WHERE e.paciente_id = %s
           AND e.data_registro::date BETWEEN %s AND %s
-        GROUP BY t.descricao, t.valor
+        GROUP BY t.descricao, COALESCE(e.valor_cobrado, t.valor)
         ORDER BY t.descricao;
         """
 
@@ -406,7 +408,7 @@ def relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim):
         SELECT
             e.data_registro,
             t.descricao AS tipo_atendimento,
-            t.valor,
+            COALESCE(e.valor_cobrado, t.valor) AS valor,
             e.profissional,
             e.resumo_evolucao
         FROM evolucao e
@@ -436,7 +438,7 @@ def relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim):
     SELECT
         e.data_registro,
         t.descricao,
-        t.valor
+        COALESCE(e.valor_cobrado, t.valor) AS valor
     FROM evolucao e
     JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
     WHERE e.paciente_id = %s
@@ -471,7 +473,7 @@ def relatorio_contador(data_inicio, data_fim):
             p.nome,
             p.cpf,
             COUNT(e.id) AS quantidade,
-            SUM(t.valor) AS total
+            SUM(COALESCE(e.valor_cobrado, t.valor)) AS total
         FROM paciente p
         JOIN evolucao e ON e.paciente_id = p.id
         JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
