@@ -19,6 +19,14 @@ if "main_menu" not in st.session_state:
     st.session_state.main_menu = "Início"
 if "admin_menu" not in st.session_state:
     st.session_state.admin_menu = "Selecione..."
+if "nav_to" not in st.session_state:
+    st.session_state.nav_to = None
+
+# Aplicar navegação pendente ANTES de criar os widgets
+if st.session_state.nav_to == "Início":
+    st.session_state.main_menu = "Início"
+    st.session_state.admin_menu = "Selecione..."
+    st.session_state.nav_to = None
 
 def on_main_menu_change():
     # Ao escolher uma opção do menu principal, sai do menu administrativo
@@ -350,8 +358,7 @@ elif menu == "Relatório por Paciente":
     st.subheader("Relatório por Paciente")
 
     if st.button("Voltar para Início", key="voltar_rel_paciente"):
-        st.session_state.admin_menu = "Selecione..."
-        st.session_state.main_menu = "Início"
+        st.session_state.nav_to = "Início"
         st.rerun()
 
     filtro = st.text_input("Buscar paciente por nome ou CPF")
@@ -424,8 +431,7 @@ elif menu == "Relatório para Contador":
     st.subheader("Relatório para Contador")
 
     if st.button("Voltar para Início", key="voltar_rel_contador"):
-        st.session_state.admin_menu = "Selecione..."
-        st.session_state.main_menu = "Início"
+        st.session_state.nav_to = "Início"
         st.rerun()
 
     col1, col2 = st.columns(2)
