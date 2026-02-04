@@ -12,8 +12,6 @@ from database import (
 from pdf_utils import gerar_pdf_relatorio_paciente
 
 
-st.title("Sistema Revitalize - Clínica")
-
 # Estado para controlar menus e permitir "voltar" do administrativo
 if "main_menu" not in st.session_state:
     st.session_state.main_menu = "Início"
@@ -112,7 +110,11 @@ if "form_key" not in st.session_state:
 
 if menu == "Início":
     st.markdown(
-        "<h2 style='text-align:center;'>Bem-vindo ao sistema da clínica!</h2>",
+        "<h1 style='text-align:center; margin-bottom: 0;'>Clínica Revitalize</h1>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        "<h3 style='text-align:center; margin-top: 0;'>Bem vindo ao sistema.</h3>",
         unsafe_allow_html=True
     )
 
@@ -581,7 +583,7 @@ st.markdown(
     }
     </style>
     <div class="app-footer">
-        Construído por Alan Alves | Contato: galves.alan@gmail.com
+        Desenvolvido por Alan Alves | Contato: galves.alan@gmail.com
     </div>
     """,
     unsafe_allow_html=True
