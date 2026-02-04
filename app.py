@@ -14,6 +14,16 @@ from pdf_utils import gerar_pdf_relatorio_paciente
 
 st.title("Sistema Revitalize - Clínica")
 
+# Estado para controlar menus e permitir "voltar" do administrativo
+if "main_menu" not in st.session_state:
+    st.session_state.main_menu = "Início"
+if "admin_menu" not in st.session_state:
+    st.session_state.admin_menu = "Selecione..."
+
+def on_main_menu_change():
+    # Ao escolher uma opção do menu principal, sai do menu administrativo
+    st.session_state.admin_menu = "Selecione..."
+
 main_menu = st.sidebar.selectbox(
     "Menu",
     [
@@ -22,7 +32,9 @@ main_menu = st.sidebar.selectbox(
         "Nova Evolução",
         "Histórico do Paciente",
         "Avaliação Inicial"
-    ]
+    ],
+    key="main_menu",
+    on_change=on_main_menu_change
 )
 
 st.sidebar.markdown("---")
@@ -32,7 +44,8 @@ admin_menu = st.sidebar.selectbox(
         "Selecione...",
         "Relatório por Paciente",
         "Relatório para Contador"
-    ]
+    ],
+    key="admin_menu"
 )
 
 menu = admin_menu if admin_menu != "Selecione..." else main_menu
