@@ -9,7 +9,19 @@ def get_connection():
         st.error(f"Erro ao conectar ao banco: {e}")
         return None
 
-def inserir_paciente(nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes, solicita_nota=False):
+def inserir_paciente(
+    nome,
+    cpf,
+    data_nascimento,
+    telefone,
+    email,
+    contato_emergencia,
+    observacoes,
+    solicita_nota=False,
+    pagador_mesmo_paciente=True,
+    pagador_nome=None,
+    pagador_cpf=None
+):
     conn = get_connection()
     if conn is None:
         return False
@@ -19,11 +31,35 @@ def inserir_paciente(nome, cpf, data_nascimento, telefone, email, contato_emerge
 
         sql = """
         INSERT INTO paciente 
-        (nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes, solicita_nota)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        (
+            nome,
+            cpf,
+            data_nascimento,
+            telefone,
+            email,
+            contato_emergencia,
+            observacoes,
+            solicita_nota,
+            pagador_mesmo_paciente,
+            pagador_nome,
+            pagador_cpf
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
-        cur.execute(sql, (nome, cpf, data_nascimento, telefone, email, contato_emergencia, observacoes, solicita_nota))
+        cur.execute(sql, (
+            nome,
+            cpf,
+            data_nascimento,
+            telefone,
+            email,
+            contato_emergencia,
+            observacoes,
+            solicita_nota,
+            pagador_mesmo_paciente,
+            pagador_nome,
+            pagador_cpf
+        ))
         conn.commit()
 
         cur.close()
@@ -470,8 +506,14 @@ def relatorio_contador(data_inicio, data_fim):
         sql = """
         SELECT
             p.id,
-            p.nome,
-            p.cpf,
+            CASE
+                WHEN COALESCE(p.pagador_mesmo_paciente, TRUE) THEN p.nome
+                ELSE COALESCE(NULLIF(p.pagador_nome, ''), p.nome)
+            END AS nome,
+            CASE
+                WHEN COALESCE(p.pagador_mesmo_paciente, TRUE) THEN p.cpf
+                ELSE COALESCE(NULLIF(p.pagador_cpf, ''), p.cpf)
+            END AS cpf,
             COUNT(e.id) AS quantidade,
             SUM(COALESCE(e.valor_cobrado, t.valor)) AS total
         FROM paciente p

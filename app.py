@@ -191,6 +191,20 @@ elif menu == "Cadastrar Paciente":
         contato_emergencia = st.text_input("Contato de emergência")
         observacoes = st.text_area("Observações")
         solicita_nota = st.checkbox("Solicita nota fiscal?")
+
+        pagador_mesmo_paciente = True
+        pagador_nome = ""
+        pagador_cpf = ""
+
+        if solicita_nota:
+            pagador_mesmo_paciente = st.checkbox(
+                "Pagador é o paciente?",
+                value=True
+            )
+            if not pagador_mesmo_paciente:
+                st.markdown("**Dados do pagador**")
+                pagador_nome = st.text_input("Nome do pagador")
+                pagador_cpf = st.text_input("CPF do pagador")
         
         enviado = st.form_submit_button("Salvar")
     
@@ -203,9 +217,25 @@ elif menu == "Cadastrar Paciente":
         elif len(cpf_digits) != 11:
             st.error("CPF deve ter 11 dígitos.")
         else:
+            pagador_cpf_digits = "".join([c for c in pagador_cpf if c.isdigit()])
+
+            if solicita_nota and not pagador_mesmo_paciente:
+                if not pagador_nome:
+                    st.error("Nome do pagador é obrigatório.")
+                    st.stop()
+                if not pagador_cpf:
+                    st.error("CPF do pagador é obrigatório.")
+                    st.stop()
+                if len(pagador_cpf_digits) != 11:
+                    st.error("CPF do pagador deve ter 11 dígitos.")
+                    st.stop()
+
             resultado = inserir_paciente(
                 nome, cpf_digits, data_nascimento,
-                telefone, email, contato_emergencia, observacoes, solicita_nota
+                telefone, email, contato_emergencia, observacoes, solicita_nota,
+                pagador_mesmo_paciente,
+                pagador_nome if pagador_nome else None,
+                pagador_cpf_digits if pagador_cpf_digits else None
             )
             
             if resultado is True:
@@ -629,7 +659,7 @@ elif menu == "Relatório para Contador":
                 dados_masked.append([
                     d[0],
                     mask_nome(d[1]),
-                    mask_cpf(d[2]),
+                    d[2],
                     d[3],
                     d[4]
                 ])
