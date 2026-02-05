@@ -1,4 +1,5 @@
 import streamlit as st
+import calendar
 from datetime import date
 from database import (
     get_connection,
@@ -119,10 +120,11 @@ else:
             "Selecione...",
             "Relatório por Paciente",
             "Relatório para Contador",
-            "Atualizar Preços"
-        ],
-        key="admin_menu"
-    )
+        "Atualizar Preços",
+        "Relatório Geral"
+    ],
+    key="admin_menu"
+)
 
     if st.sidebar.button("Sair", key="admin_logout"):
         st.session_state.admin_authed = False
@@ -695,6 +697,55 @@ elif menu == "Atualizar Preços":
                 st.rerun()
             else:
                 st.error(f"Erro ao atualizar: {resultado}")
+
+elif menu == "Relatório Geral":
+
+    st.subheader("Relatório Geral do Mês")
+
+    if st.button("Voltar para Início", key="voltar_rel_geral"):
+        st.session_state.nav_to = "Início"
+        st.rerun()
+
+    from database import relatorio_geral_resumo, relatorio_geral_por_tipo
+
+    mes_ref = st.date_input("Mês de referência", value=date.today())
+    data_inicio = date(mes_ref.year, mes_ref.month, 1)
+    ultimo_dia = calendar.monthrange(mes_ref.year, mes_ref.month)[1]
+    data_fim = date(mes_ref.year, mes_ref.month, ultimo_dia)
+
+    st.caption(
+        f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
+    )
+
+    if st.button("Gerar relatório geral"):
+        resumo = relatorio_geral_resumo(data_inicio, data_fim)
+        por_tipo = relatorio_geral_por_tipo(data_inicio, data_fim)
+
+        if resumo:
+            total_entradas, pacientes_pagantes, tipos_sessao = resumo
+        else:
+            total_entradas, pacientes_pagantes, tipos_sessao = 0, 0, 0
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Entradas no mês", f"R$ {total_entradas:.2f}")
+        with col2:
+            st.metric("Pacientes pagantes", pacientes_pagantes)
+        with col3:
+            st.metric("Tipos de sessão", tipos_sessao)
+
+        if not por_tipo:
+            st.info("Nenhuma entrada no período.")
+        else:
+            import pandas as pd
+
+            df = pd.DataFrame(
+                por_tipo,
+                columns=["Tipo de sessão", "Pacientes", "Sessões", "Total (R$)"]
+            )
+            df = df.sort_values(by="Pacientes", ascending=False, kind="mergesort")
+            df.insert(0, "Destaque", ["TOP" if i == 0 else "" for i in range(len(df))])
+            st.dataframe(df, use_container_width=True)
 
 st.markdown(
     """
