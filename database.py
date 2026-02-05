@@ -467,29 +467,6 @@ def relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim):
         conn.close()
         return []
 
-    conn = get_connection()
-    cur = conn.cursor()
-
-    sql = """
-    SELECT
-        e.data_registro,
-        t.descricao,
-        COALESCE(e.valor_cobrado, t.valor) AS valor
-    FROM evolucao e
-    JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
-    WHERE e.paciente_id = %s
-      AND e.data_registro::date BETWEEN %s AND %s
-    ORDER BY e.data_registro;
-    """
-
-    cur.execute(sql, (paciente_id, data_inicio, data_fim))
-    dados = cur.fetchall()
-
-    cur.close()
-    conn.close()
-
-    return dados
-
 
 def relatorio_contador(data_inicio, data_fim):
     """

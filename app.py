@@ -5,47 +5,24 @@ from database import (
     get_connection,
     inserir_paciente,
     listar_pacientes,
-    relatorio_paciente,
+    inserir_evolucao,
+    listar_tipos_atendimento_com_valor,
+    listar_evolucoes_por_paciente,
+    inserir_avaliacao,
+    buscar_avaliacao,
     relatorio_paciente_agrupado,
     relatorio_paciente_detalhado,
-    relatorio_contador
+    relatorio_contador,
+    atualizar_preco_tipo_atendimento,
+    relatorio_geral_resumo,
+    relatorio_geral_por_tipo,
+    listar_notas_fiscais_mes,
+    definir_pagador_nf,
+    buscar_pagador_paciente,
+    atualizar_pagador_paciente
 )
 from pdf_utils import gerar_pdf_relatorio_paciente
-
-
-def mask_cpf(cpf):
-    if cpf is None:
-        return ""
-    digits = "".join([c for c in str(cpf) if c.isdigit()])
-    if len(digits) < 2:
-        return "***"
-    return f"***.***.***-{digits[-2:]}"
-
-
-def mask_phone(telefone):
-    if telefone is None:
-        return ""
-    digits = "".join([c for c in str(telefone) if c.isdigit()])
-    if len(digits) <= 4:
-        return "****"
-    return f"{'*' * (len(digits) - 4)}{digits[-4:]}"
-
-
-def mask_email(email):
-    if not email:
-        return ""
-    if "@" not in email:
-        return email
-    nome, dominio = email.split("@", 1)
-    if len(nome) <= 1:
-        masked_nome = "*"
-    else:
-        masked_nome = nome[0] + "*" * (len(nome) - 1)
-    return f"{masked_nome}@{dominio}"
-
-
-def mask_nome(nome):
-    return nome or ""
+from utils import mask_cpf, mask_email, mask_nome, mask_phone, only_digits
 
 
 # Estado para controlar menus e permitir "voltar" do administrativo
@@ -214,7 +191,7 @@ elif menu == "Cadastrar Paciente":
     enviado = st.button("Salvar", key=f"salvar_paciente_{form_key}")
     
     if enviado:
-        cpf_digits = "".join([c for c in cpf if c.isdigit()])
+        cpf_digits = only_digits(cpf)
         if not nome:
             st.error("Nome é obrigatório!")
         elif not cpf:
@@ -222,7 +199,7 @@ elif menu == "Cadastrar Paciente":
         elif len(cpf_digits) != 11:
             st.error("CPF deve ter 11 dígitos.")
         else:
-            pagador_cpf_digits = "".join([c for c in pagador_cpf if c.isdigit()])
+            pagador_cpf_digits = only_digits(pagador_cpf)
 
             if solicita_nota and not pagador_mesmo_paciente:
                 if not pagador_nome:
@@ -296,8 +273,6 @@ elif menu == "Nova Evolução":
 
     st.subheader("Registrar Nova Evolução")
 
-    from database import listar_pacientes, inserir_evolucao
-
     filtro = st.text_input("Buscar paciente por nome ou CPF")
 
     pacientes = listar_pacientes(filtro)
@@ -317,8 +292,6 @@ elif menu == "Nova Evolução":
 
             data_registro = st.date_input("Data do atendimento")
             profissional = st.text_input("Profissional responsável")
-
-            from database import listar_tipos_atendimento_com_valor
 
             tipos = listar_tipos_atendimento_com_valor()
 
@@ -377,8 +350,6 @@ elif menu == "Nova Evolução":
 elif menu == "Histórico do Paciente":
 
     st.subheader("Histórico de Evoluções")
-
-    from database import listar_pacientes, listar_evolucoes_por_paciente
 
     # Garantir que o estado existe
     if "evolucao_aberta" not in st.session_state:
@@ -454,8 +425,6 @@ elif menu == "Histórico do Paciente":
 elif menu == "Avaliação Inicial":
 
     st.subheader("Avaliação Clínica Inicial")
-
-    from database import listar_pacientes, inserir_avaliacao, buscar_avaliacao
 
     if "avaliacao_form_ativo" not in st.session_state:
         st.session_state.avaliacao_form_ativo = False
@@ -701,8 +670,6 @@ elif menu == "Atualizar Preços":
         st.session_state.nav_to = "Início"
         st.rerun()
 
-    from database import listar_tipos_atendimento_com_valor, atualizar_preco_tipo_atendimento
-
     tipos = listar_tipos_atendimento_com_valor()
 
     if not tipos:
@@ -748,8 +715,6 @@ elif menu == "Relatório Geral":
     if st.button("Voltar para Início", key="voltar_rel_geral"):
         st.session_state.nav_to = "Início"
         st.rerun()
-
-    from database import relatorio_geral_resumo, relatorio_geral_por_tipo
 
     mes_ref = st.date_input("Mês de referência", value=date.today())
     data_inicio = date(mes_ref.year, mes_ref.month, 1)
@@ -797,14 +762,6 @@ elif menu == "Notas Fiscais":
     if st.button("Voltar para Início", key="voltar_nf"):
         st.session_state.nav_to = "Início"
         st.rerun()
-
-    from database import (
-        listar_notas_fiscais_mes,
-        definir_pagador_nf,
-        listar_pacientes,
-        buscar_pagador_paciente,
-        atualizar_pagador_paciente
-    )
 
     mes_ref = st.date_input("Mês de referência", value=date.today(), key="nf_mes_ref")
     data_inicio = date(mes_ref.year, mes_ref.month, 1)
@@ -858,7 +815,7 @@ elif menu == "Notas Fiscais":
 
         if st.button("Salvar pagador", key="nf_salvar_pagador"):
             if not pagador_mesmo:
-                pagador_cpf_digits = "".join([c for c in pagador_cpf if c.isdigit()])
+                pagador_cpf_digits = only_digits(pagador_cpf)
                 if not pagador_nome:
                     st.error("Nome do pagador é obrigatório.")
                     st.stop()
