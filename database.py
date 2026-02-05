@@ -495,6 +495,77 @@ def relatorio_contador(data_inicio, data_fim):
         conn.close()
         return []
 
+def relatorio_geral_resumo(data_inicio, data_fim):
+    """
+    Resumo do mês: entradas, pacientes pagantes e tipos de sessão.
+    """
+    conn = get_connection()
+    if conn is None:
+        return None
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT
+            COALESCE(SUM(COALESCE(e.valor_cobrado, t.valor)), 0) AS total_entradas,
+            COUNT(DISTINCT e.paciente_id) AS pacientes_pagantes,
+            COUNT(DISTINCT e.tipo_atendimento_id) AS tipos_sessao
+        FROM evolucao e
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        WHERE e.data_registro::date BETWEEN %s AND %s
+        """
+
+        cur.execute(sql, (data_inicio, data_fim))
+        resultado = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        return resultado
+
+    except Exception:
+        conn.close()
+        return None
+
+
+def relatorio_geral_por_tipo(data_inicio, data_fim):
+    """
+    Entradas do mês por tipo de sessão.
+    Retorna: tipo, pacientes distintos, sessões, total.
+    """
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT
+            t.descricao AS tipo_sessao,
+            COUNT(DISTINCT e.paciente_id) AS pacientes,
+            COUNT(e.id) AS sessoes,
+            SUM(COALESCE(e.valor_cobrado, t.valor)) AS total
+        FROM evolucao e
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        WHERE e.data_registro::date BETWEEN %s AND %s
+        GROUP BY t.descricao
+        ORDER BY t.descricao
+        """
+
+        cur.execute(sql, (data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
 
 
 
