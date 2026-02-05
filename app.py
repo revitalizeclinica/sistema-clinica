@@ -119,9 +119,10 @@ else:
         [
             "Selecione...",
             "Relatório por Paciente",
-            "Relatório para Contador",
+        "Relatório para Contador",
         "Atualizar Preços",
-        "Relatório Geral"
+        "Relatório Geral",
+        "Notas Fiscais"
     ],
     key="admin_menu"
 )
@@ -177,36 +178,40 @@ elif menu == "Cadastrar Paciente":
         st.session_state.mensagem_sucesso = ""
     
     # Usar uma key dinâmica para forçar a recriação do formulário
-    with st.form(key=f"form_paciente_{st.session_state.form_key}"):
-        nome = st.text_input("Nome completo")
-        cpf = st.text_input("CPF")
-        data_nascimento = st.date_input(
-            "Data de nascimento",
-            min_value=date(1900, 1, 1),
-            max_value=date.today(),
-            format="DD/MM/YYYY"
+    form_key = st.session_state.form_key
+
+    nome = st.text_input("Nome completo", key=f"nome_{form_key}")
+    cpf = st.text_input("CPF", key=f"cpf_{form_key}")
+    data_nascimento = st.date_input(
+        "Data de nascimento",
+        min_value=date(1900, 1, 1),
+        max_value=date.today(),
+        format="DD/MM/YYYY",
+        key=f"data_nascimento_{form_key}"
+    )
+    telefone = st.text_input("Telefone", key=f"telefone_{form_key}")
+    email = st.text_input("Email", key=f"email_{form_key}")
+    contato_emergencia = st.text_input("Contato de emergência", key=f"contato_{form_key}")
+    observacoes = st.text_area("Observações", key=f"observacoes_{form_key}")
+
+    solicita_nota = st.checkbox("Solicita nota fiscal?", key=f"solicita_nota_{form_key}")
+
+    pagador_mesmo_paciente = True
+    pagador_nome = ""
+    pagador_cpf = ""
+
+    if solicita_nota:
+        pagador_mesmo_paciente = st.checkbox(
+            "Pagador é o paciente?",
+            value=True,
+            key=f"pagador_mesmo_{form_key}"
         )
-        telefone = st.text_input("Telefone")
-        email = st.text_input("Email")
-        contato_emergencia = st.text_input("Contato de emergência")
-        observacoes = st.text_area("Observações")
-        solicita_nota = st.checkbox("Solicita nota fiscal?")
+        if not pagador_mesmo_paciente:
+            st.markdown("**Dados do pagador**")
+            pagador_nome = st.text_input("Nome do pagador", key=f"pagador_nome_{form_key}")
+            pagador_cpf = st.text_input("CPF do pagador", key=f"pagador_cpf_{form_key}")
 
-        pagador_mesmo_paciente = True
-        pagador_nome = ""
-        pagador_cpf = ""
-
-        if solicita_nota:
-            pagador_mesmo_paciente = st.checkbox(
-                "Pagador é o paciente?",
-                value=True
-            )
-            if not pagador_mesmo_paciente:
-                st.markdown("**Dados do pagador**")
-                pagador_nome = st.text_input("Nome do pagador")
-                pagador_cpf = st.text_input("CPF do pagador")
-        
-        enviado = st.form_submit_button("Salvar")
+    enviado = st.button("Salvar", key=f"salvar_paciente_{form_key}")
     
     if enviado:
         cpf_digits = "".join([c for c in cpf if c.isdigit()])
@@ -776,6 +781,50 @@ elif menu == "Relatório Geral":
             df = df.sort_values(by="Pacientes", ascending=False, kind="mergesort")
             df.insert(0, "Destaque", ["TOP" if i == 0 else "" for i in range(len(df))])
             st.dataframe(df, use_container_width=True)
+
+elif menu == "Notas Fiscais":
+
+    st.subheader("Notas Fiscais")
+
+    if st.button("Voltar para Início", key="voltar_nf"):
+        st.session_state.nav_to = "Início"
+        st.rerun()
+
+    from database import gerar_notas_fiscais_mes, listar_notas_fiscais_mes
+
+    mes_ref = st.date_input("Mês de referência", value=date.today(), key="nf_mes_ref")
+    data_inicio = date(mes_ref.year, mes_ref.month, 1)
+    ultimo_dia = calendar.monthrange(mes_ref.year, mes_ref.month)[1]
+    data_fim = date(mes_ref.year, mes_ref.month, ultimo_dia)
+    competencia = data_inicio
+
+    st.caption(
+        f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
+    )
+
+    if st.button("Gerar NFs do mês", key="gerar_nf_mes"):
+        inseridos = gerar_notas_fiscais_mes(data_inicio, data_fim, competencia)
+        if inseridos > 0:
+            st.success(f"{inseridos} NF(s) geradas com sucesso.")
+        else:
+            st.info("Nenhuma NF gerada (talvez já existam ou não há registros).")
+
+    notas = listar_notas_fiscais_mes(competencia)
+
+    if not notas:
+        st.info("Nenhuma NF encontrada para o mês selecionado.")
+    else:
+        import pandas as pd
+
+        df = pd.DataFrame(
+            notas,
+            columns=["ID", "Paciente", "Pagador", "CPF", "Total (R$)", "Status", "Competência"]
+        )
+        st.dataframe(df, use_container_width=True)
+
+    st.caption(
+        "Próxima fase: gerar QR Code de pagamento e rastrear status para emissão da NF."
+    )
 
 st.markdown(
     """

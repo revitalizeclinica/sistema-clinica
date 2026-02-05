@@ -608,6 +608,106 @@ def relatorio_geral_por_tipo(data_inicio, data_fim):
         conn.close()
         return []
 
+def gerar_notas_fiscais_mes(data_inicio, data_fim, competencia):
+    """
+    Gera notas fiscais do mês (uma por paciente) com total e dados do pagador.
+    """
+    conn = get_connection()
+    if conn is None:
+        return 0
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        INSERT INTO nota_fiscal (
+            paciente_id,
+            competencia,
+            total,
+            pagador_nome,
+            pagador_cpf
+        )
+        SELECT
+            p.id,
+            %s AS competencia,
+            SUM(COALESCE(e.valor_cobrado, t.valor)) AS total,
+            CASE
+                WHEN COALESCE(p.pagador_mesmo_paciente, TRUE) THEN p.nome
+                ELSE COALESCE(NULLIF(p.pagador_nome, ''), p.nome)
+            END AS pagador_nome,
+            CASE
+                WHEN COALESCE(p.pagador_mesmo_paciente, TRUE) THEN p.cpf
+                ELSE COALESCE(NULLIF(p.pagador_cpf, ''), p.cpf)
+            END AS pagador_cpf
+        FROM paciente p
+        JOIN evolucao e ON e.paciente_id = p.id
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        WHERE p.solicita_nota = TRUE
+          AND e.data_registro::date BETWEEN %s AND %s
+        GROUP BY p.id,
+                 CASE
+                     WHEN COALESCE(p.pagador_mesmo_paciente, TRUE) THEN p.nome
+                     ELSE COALESCE(NULLIF(p.pagador_nome, ''), p.nome)
+                 END,
+                 CASE
+                     WHEN COALESCE(p.pagador_mesmo_paciente, TRUE) THEN p.cpf
+                     ELSE COALESCE(NULLIF(p.pagador_cpf, ''), p.cpf)
+                 END
+        ON CONFLICT (paciente_id, competencia) DO NOTHING
+        """
+
+        cur.execute(sql, (competencia, data_inicio, data_fim))
+        inseridos = cur.rowcount
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return inseridos
+
+    except Exception:
+        conn.close()
+        return 0
+
+
+def listar_notas_fiscais_mes(competencia):
+    """
+    Lista notas fiscais por mês.
+    """
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT
+            nf.id,
+            p.nome AS paciente,
+            nf.pagador_nome,
+            nf.pagador_cpf,
+            nf.total,
+            nf.status,
+            nf.competencia
+        FROM nota_fiscal nf
+        JOIN paciente p ON nf.paciente_id = p.id
+        WHERE nf.competencia = %s
+        ORDER BY p.nome
+        """
+
+        cur.execute(sql, (competencia,))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
 
 
 
