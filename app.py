@@ -412,6 +412,11 @@ elif menu == "Avaliação Inicial":
 
     from database import listar_pacientes, inserir_avaliacao, buscar_avaliacao
 
+    if "avaliacao_form_ativo" not in st.session_state:
+        st.session_state.avaliacao_form_ativo = False
+    if "avaliacao_selecionado_id" not in st.session_state:
+        st.session_state.avaliacao_selecionado_id = None
+
     filtro = st.text_input("Buscar paciente")
 
     pacientes = listar_pacientes(filtro)
@@ -423,6 +428,10 @@ elif menu == "Avaliação Inicial":
         escolha = st.selectbox("Selecione o paciente", opcoes)
 
         paciente_id = int(escolha.split(" - ")[0])
+
+        if st.session_state.avaliacao_selecionado_id != paciente_id:
+            st.session_state.avaliacao_form_ativo = False
+            st.session_state.avaliacao_selecionado_id = paciente_id
 
         existente = buscar_avaliacao(paciente_id)
 
@@ -454,6 +463,67 @@ elif menu == "Avaliação Inicial":
 
             mostrar_campo("Objetivos do tratamento", existente[14])
             mostrar_campo("Plano terapêutico", existente[15])
+        else:
+            st.info("Este paciente ainda não possui avaliação inicial.")
+
+            if st.button("Habilitar preenchimento", key=f"habilitar_avaliacao_{paciente_id}"):
+                st.session_state.avaliacao_form_ativo = True
+                st.rerun()
+
+            if st.session_state.avaliacao_form_ativo:
+                with st.form("form_avaliacao_inicial"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        data_avaliacao = st.date_input("Data da avaliação", value=date.today())
+                    with col2:
+                        profissional = st.text_input("Profissional")
+
+                    queixa = st.text_area("Queixa principal")
+                    diagnostico = st.text_area("Diagnóstico")
+                    historico = st.text_area("Histórico")
+                    medicamentos = st.text_area("Medicamentos em uso")
+
+                    dor = st.text_area("Avaliação da dor")
+                    mobilidade = st.text_area("Mobilidade")
+                    forca = st.text_area("Força muscular")
+                    limitacoes = st.text_area("Limitações funcionais")
+                    marcha = st.text_area("Marcha")
+                    equilibrio = st.text_area("Equilíbrio")
+
+                    objetivos = st.text_area("Objetivos do tratamento")
+                    plano = st.text_area("Plano terapêutico")
+
+                    enviado = st.form_submit_button("Salvar avaliação")
+
+                if enviado:
+                    if not profissional:
+                        st.error("Informe o nome do profissional.")
+                    else:
+                        dados = {
+                            "data": data_avaliacao,
+                            "profissional": profissional,
+                            "queixa": queixa,
+                            "diagnostico": diagnostico,
+                            "historico": historico,
+                            "medicamentos": medicamentos,
+                            "dor": dor,
+                            "mobilidade": mobilidade,
+                            "forca": forca,
+                            "limitacoes": limitacoes,
+                            "marcha": marcha,
+                            "equilibrio": equilibrio,
+                            "objetivos": objetivos,
+                            "plano": plano
+                        }
+
+                        resultado = inserir_avaliacao(paciente_id, dados)
+
+                        if resultado is True:
+                            st.success("Avaliação inicial cadastrada com sucesso!")
+                            st.session_state.avaliacao_form_ativo = False
+                            st.rerun()
+                        else:
+                            st.error(f"Erro ao salvar: {resultado}")
 
 elif menu == "Relatório por Paciente":
 
