@@ -799,7 +799,6 @@ elif menu == "Notas Fiscais":
         st.rerun()
 
     from database import (
-        gerar_notas_fiscais_mes,
         listar_notas_fiscais_mes,
         definir_pagador_nf,
         listar_pacientes,
@@ -905,13 +904,6 @@ elif menu == "Notas Fiscais":
 
     st.markdown("---")
 
-    if st.button("Gerar NFs do mês", key="gerar_nf_mes"):
-        inseridos = gerar_notas_fiscais_mes(data_inicio, data_fim, competencia)
-        if inseridos > 0:
-            st.success(f"{inseridos} NF(s) geradas com sucesso.")
-        else:
-            st.info("Nenhuma NF gerada (talvez já existam ou não há registros).")
-
     notas = listar_notas_fiscais_mes(competencia)
 
     if not notas:
@@ -926,7 +918,7 @@ elif menu == "Notas Fiscais":
         st.dataframe(df, use_container_width=True)
 
     st.caption(
-        "Próxima fase: gerar QR Code de pagamento e rastrear status para emissão da NF."
+        "Próxima fase: gerar NFs do mês, QR Code de pagamento e rastrear status para emissão da NF."
     )
 
 st.markdown(
