@@ -650,7 +650,7 @@ def render_notas_fiscais():
         f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
     )
 
-    st.markdown("**Definir pagador da NF (lembra para próximos meses)**")
+    st.markdown("**Dados para NF (lembra para próximos meses)**")
 
     pacientes_nf = listar_pacientes("")
     if pacientes_nf:
@@ -664,14 +664,14 @@ def render_notas_fiscais():
         else:
             pagador_mesmo_padrao, pagador_nome_padrao, pagador_cpf_padrao = True, "", ""
 
-        pagador_mesmo = st.checkbox(
-            "Pagador é o paciente?",
-            value=pagador_mesmo_padrao,
-            key=f"nf_pagador_mesmo_{paciente_id_nf}"
+        dados_nf = st.checkbox(
+            "Dados para NF",
+            value=not pagador_mesmo_padrao,
+            key=f"nf_dados_nf_{paciente_id_nf}"
         )
         pagador_nome = ""
         pagador_cpf = ""
-        if not pagador_mesmo:
+        if dados_nf:
             pagador_nome = st.text_input(
                 "Nome do pagador",
                 value=pagador_nome_padrao or "",
@@ -690,7 +690,7 @@ def render_notas_fiscais():
         )
 
         if st.button("Salvar pagador", key="nf_salvar_pagador"):
-            if not pagador_mesmo:
+            if dados_nf:
                 pagador_cpf_digits = only_digits(pagador_cpf)
                 if not pagador_nome:
                     st.error("Nome do pagador é obrigatório.")
@@ -702,9 +702,11 @@ def render_notas_fiscais():
                     st.error("CPF do pagador deve ter 11 dígitos.")
                     st.stop()
                 pagador_cpf = pagador_cpf_digits
+                pagador_mesmo = False
             else:
                 pagador_nome = None
                 pagador_cpf = None
+                pagador_mesmo = True
 
             resultado = definir_pagador_nf(
                 paciente_id_nf,
