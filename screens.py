@@ -651,6 +651,7 @@ def render_notas_fiscais():
     )
 
     st.markdown("**Dados para NF (lembra para próximos meses)**")
+    st.caption("Por padrão, usamos os dados do paciente para emissão da NF.")
 
     pacientes_nf = listar_pacientes("")
     if pacientes_nf:
@@ -683,13 +684,7 @@ def render_notas_fiscais():
                 key=f"nf_pagador_cpf_{paciente_id_nf}"
             )
 
-        salvar_padrao = st.checkbox(
-            "Salvar como padrão do paciente",
-            value=True,
-            key=f"nf_salvar_padrao_{paciente_id_nf}"
-        )
-
-        if st.button("Salvar pagador", key="nf_salvar_pagador"):
+        if st.button("Salvar dados de NF", key="nf_salvar_pagador"):
             if dados_nf:
                 pagador_cpf_digits = only_digits(pagador_cpf)
                 if not pagador_nome:
@@ -718,15 +713,14 @@ def render_notas_fiscais():
                 pagador_cpf
             )
 
-            if salvar_padrao:
-                atualizacao = atualizar_pagador_paciente(
-                    paciente_id_nf,
-                    pagador_mesmo,
-                    pagador_nome,
-                    pagador_cpf
-                )
-                if atualizacao is not True:
-                    st.error(f"Erro ao atualizar padrão do paciente: {atualizacao}")
+            atualizacao = atualizar_pagador_paciente(
+                paciente_id_nf,
+                pagador_mesmo,
+                pagador_nome,
+                pagador_cpf
+            )
+            if atualizacao is not True:
+                st.error(f"Erro ao atualizar padrão do paciente: {atualizacao}")
 
             if resultado is True or (isinstance(resultado, int) and resultado > 0):
                 st.success("Pagador atualizado com sucesso.")
