@@ -708,6 +708,149 @@ def listar_notas_fiscais_mes(competencia):
         conn.close()
         return []
 
+def definir_pagador_nf(paciente_id, competencia, data_inicio, data_fim,
+                       pagador_mesmo_paciente, pagador_nome, pagador_cpf):
+    """
+    Define/atualiza pagador da NF do mês para um paciente.
+    Cria a NF do mês se necessário.
+    """
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        INSERT INTO nota_fiscal (
+            paciente_id,
+            competencia,
+            total,
+            pagador_nome,
+            pagador_cpf
+        )
+        SELECT
+            p.id,
+            %s AS competencia,
+            COALESCE(SUM(COALESCE(e.valor_cobrado, t.valor)), 0) AS total,
+            CASE
+                WHEN %s THEN p.nome
+                ELSE %s
+            END AS pagador_nome,
+            CASE
+                WHEN %s THEN p.cpf
+                ELSE %s
+            END AS pagador_cpf
+        FROM paciente p
+        LEFT JOIN evolucao e
+            ON e.paciente_id = p.id
+            AND e.data_registro::date BETWEEN %s AND %s
+        LEFT JOIN tipo_atendimento t
+            ON e.tipo_atendimento_id = t.id
+        WHERE p.id = %s
+        GROUP BY p.id, p.nome, p.cpf
+        HAVING COUNT(e.id) > 0
+        ON CONFLICT (paciente_id, competencia) DO UPDATE
+        SET pagador_nome = EXCLUDED.pagador_nome,
+            pagador_cpf = EXCLUDED.pagador_cpf,
+            total = EXCLUDED.total
+        """
+
+        cur.execute(sql, (
+            competencia,
+            pagador_mesmo_paciente,
+            pagador_nome,
+            pagador_mesmo_paciente,
+            pagador_cpf,
+            data_inicio,
+            data_fim,
+            paciente_id
+        ))
+
+        afetados = cur.rowcount
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return afetados
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+
+
+def buscar_pagador_paciente(paciente_id):
+    """
+    Retorna dados do pagador padrão do paciente.
+    """
+    conn = get_connection()
+    if conn is None:
+        return None
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT
+            nome,
+            cpf,
+            COALESCE(pagador_mesmo_paciente, TRUE) AS pagador_mesmo_paciente,
+            pagador_nome,
+            pagador_cpf
+        FROM paciente
+        WHERE id = %s
+        """
+
+        cur.execute(sql, (paciente_id,))
+        dados = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return None
+
+
+def atualizar_pagador_paciente(paciente_id, pagador_mesmo_paciente, pagador_nome, pagador_cpf):
+    """
+    Atualiza o pagador padrão do paciente.
+    """
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        UPDATE paciente
+        SET pagador_mesmo_paciente = %s,
+            pagador_nome = %s,
+            pagador_cpf = %s
+        WHERE id = %s
+        """
+
+        cur.execute(sql, (
+            pagador_mesmo_paciente,
+            pagador_nome,
+            pagador_cpf,
+            paciente_id
+        ))
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+
 
 
 

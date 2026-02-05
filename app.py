@@ -235,6 +235,14 @@ elif menu == "Cadastrar Paciente":
                     st.error("CPF do pagador deve ter 11 dígitos.")
                     st.stop()
 
+            if not solicita_nota:
+                pagador_mesmo_paciente = True
+                pagador_nome = None
+                pagador_cpf_digits = None
+            elif pagador_mesmo_paciente:
+                pagador_nome = None
+                pagador_cpf_digits = None
+
             resultado = inserir_paciente(
                 nome, cpf_digits, data_nascimento,
                 telefone, email, contato_emergencia, observacoes, solicita_nota,
@@ -790,7 +798,14 @@ elif menu == "Notas Fiscais":
         st.session_state.nav_to = "Início"
         st.rerun()
 
-    from database import gerar_notas_fiscais_mes, listar_notas_fiscais_mes
+    from database import (
+        gerar_notas_fiscais_mes,
+        listar_notas_fiscais_mes,
+        definir_pagador_nf,
+        listar_pacientes,
+        buscar_pagador_paciente,
+        atualizar_pagador_paciente
+    )
 
     mes_ref = st.date_input("Mês de referência", value=date.today(), key="nf_mes_ref")
     data_inicio = date(mes_ref.year, mes_ref.month, 1)
@@ -801,6 +816,94 @@ elif menu == "Notas Fiscais":
     st.caption(
         f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
     )
+
+    st.markdown("**Definir pagador da NF (lembra para próximos meses)**")
+
+    pacientes_nf = listar_pacientes("")
+    if pacientes_nf:
+        opcoes_nf = [f"{p[0]} - {p[1]} (CPF: {p[2]})" for p in pacientes_nf]
+        escolha_nf = st.selectbox("Paciente", opcoes_nf, key="nf_paciente")
+        paciente_id_nf = int(escolha_nf.split(" - ")[0])
+
+        dados_pagador = buscar_pagador_paciente(paciente_id_nf)
+        if dados_pagador:
+            nome_paciente, cpf_paciente, pagador_mesmo_padrao, pagador_nome_padrao, pagador_cpf_padrao = dados_pagador
+        else:
+            nome_paciente, cpf_paciente = "", ""
+            pagador_mesmo_padrao, pagador_nome_padrao, pagador_cpf_padrao = True, "", ""
+
+        pagador_mesmo = st.checkbox(
+            "Pagador é o paciente?",
+            value=pagador_mesmo_padrao,
+            key=f"nf_pagador_mesmo_{paciente_id_nf}"
+        )
+        pagador_nome = ""
+        pagador_cpf = ""
+        if not pagador_mesmo:
+            pagador_nome = st.text_input(
+                "Nome do pagador",
+                value=pagador_nome_padrao or "",
+                key=f"nf_pagador_nome_{paciente_id_nf}"
+            )
+            pagador_cpf = st.text_input(
+                "CPF do pagador",
+                value=pagador_cpf_padrao or "",
+                key=f"nf_pagador_cpf_{paciente_id_nf}"
+            )
+
+        salvar_padrao = st.checkbox(
+            "Salvar como padrão do paciente",
+            value=True,
+            key=f"nf_salvar_padrao_{paciente_id_nf}"
+        )
+
+        if st.button("Salvar pagador", key="nf_salvar_pagador"):
+            if not pagador_mesmo:
+                pagador_cpf_digits = "".join([c for c in pagador_cpf if c.isdigit()])
+                if not pagador_nome:
+                    st.error("Nome do pagador é obrigatório.")
+                    st.stop()
+                if not pagador_cpf:
+                    st.error("CPF do pagador é obrigatório.")
+                    st.stop()
+                if len(pagador_cpf_digits) != 11:
+                    st.error("CPF do pagador deve ter 11 dígitos.")
+                    st.stop()
+                pagador_cpf = pagador_cpf_digits
+            else:
+                pagador_nome = None
+                pagador_cpf = None
+
+            resultado = definir_pagador_nf(
+                paciente_id_nf,
+                competencia,
+                data_inicio,
+                data_fim,
+                pagador_mesmo,
+                pagador_nome,
+                pagador_cpf
+            )
+
+            if salvar_padrao:
+                atualizacao = atualizar_pagador_paciente(
+                    paciente_id_nf,
+                    pagador_mesmo,
+                    pagador_nome,
+                    pagador_cpf
+                )
+                if atualizacao is not True:
+                    st.error(f"Erro ao atualizar padrão do paciente: {atualizacao}")
+
+            if resultado is True or (isinstance(resultado, int) and resultado > 0):
+                st.success("Pagador atualizado com sucesso.")
+            elif resultado == 0:
+                st.info("Sem atendimentos no mês para esse paciente.")
+            else:
+                st.error(f"Erro ao salvar pagador: {resultado}")
+    else:
+        st.info("Nenhum paciente encontrado.")
+
+    st.markdown("---")
 
     if st.button("Gerar NFs do mês", key="gerar_nf_mes"):
         inseridos = gerar_notas_fiscais_mes(data_inicio, data_fim, competencia)
