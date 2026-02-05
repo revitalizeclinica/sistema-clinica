@@ -65,7 +65,7 @@ st.sidebar.subheader("Administrativo")
 if not st.session_state.admin_authed:
     senha_admin = st.sidebar.text_input("Senha", type="password", key="admin_pwd")
     if st.sidebar.button("Entrar", key="admin_login"):
-        if senha_admin == "r3v1t4l1z3":
+        if senha_admin == "revitalize":
             st.session_state.admin_authed = True
             st.session_state.admin_pwd_reset = True
             st.rerun()
