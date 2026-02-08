@@ -1,4 +1,7 @@
 import calendar
+import io
+import re
+import zipfile
 from datetime import date
 
 import streamlit as st
@@ -38,6 +41,14 @@ def _mes_range(mes_ref):
     ultimo_dia = calendar.monthrange(mes_ref.year, mes_ref.month)[1]
     data_fim = date(mes_ref.year, mes_ref.month, ultimo_dia)
     return data_inicio, data_fim
+
+
+
+def _safe_filename(value):
+    if not value:
+        return "paciente"
+    cleaned = re.sub(r"[^A-Za-z0-9]+", "_", value.strip())
+    return cleaned.strip("_") or "paciente"
 
 
 def render_inicio():
@@ -445,11 +456,17 @@ def render_relatorio_paciente():
         st.info("Nenhum paciente encontrado.")
     else:
         pacientes_por_id = {p[0]: p[1] for p in pacientes}
-        opcoes = [f"{p[0]} - {p[1]} (CPF: {mask_cpf(p[2])})" for p in pacientes]
+        opcoes = ["Todos os pacientes do período"] + [
+            f"{p[0]} - {p[1]} (CPF: {mask_cpf(p[2])})" for p in pacientes
+        ]
         escolha = st.selectbox("Selecione o paciente", opcoes)
 
-        paciente_id = int(escolha.split(" - ")[0])
-        nome_paciente = pacientes_por_id.get(paciente_id, "Paciente")
+        todos_pacientes = escolha == opcoes[0]
+        paciente_id = None
+        nome_paciente = None
+        if not todos_pacientes:
+            paciente_id = int(escolha.split(" - ")[0])
+            nome_paciente = pacientes_por_id.get(paciente_id, "Paciente")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -460,46 +477,88 @@ def render_relatorio_paciente():
         if data_fim < data_inicio:
             st.error("A data final deve ser maior ou igual à data inicial.")
         elif st.button("Gerar relatório"):
-            dados = relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim)
+            periodo = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
+            mes_ref = data_inicio.strftime("%Y-%m")
 
-            if not dados:
-                st.info("Nenhum atendimento no período.")
+            if todos_pacientes:
+                zip_buffer = io.BytesIO()
+                total_arquivos = 0
+
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                    for p in pacientes:
+                        paciente_id_loop = p[0]
+                        nome_paciente_loop = p[1]
+
+                        dados_detalhados = relatorio_paciente_detalhado(
+                            paciente_id_loop, data_inicio, data_fim
+                        )
+                        if not dados_detalhados:
+                            continue
+
+                        dados_pdf = [(d[0], d[1], d[2]) for d in dados_detalhados]
+                        pdf_buffer = gerar_pdf_relatorio_paciente(
+                            nome_paciente_loop, periodo, dados_pdf
+                        )
+
+                        nome_arquivo = f"relatorio_{_safe_filename(nome_paciente_loop)}_{mes_ref}.pdf"
+                        zf.writestr(nome_arquivo, pdf_buffer.getvalue())
+                        total_arquivos += 1
+
+                if total_arquivos == 0:
+                    st.info("Nenhum atendimento no período para gerar relatórios.")
+                else:
+                    zip_buffer.seek(0)
+                    st.success(f"{total_arquivos} relatórios gerados.")
+                    st.download_button(
+                        "Baixar relatórios do mês (ZIP)",
+                        data=zip_buffer.getvalue(),
+                        file_name=f"relatorios_{mes_ref}.zip",
+                        mime="application/zip"
+                    )
             else:
-                st.write(f"Total de registros: {len(dados)}")
-                st.write("### Atendimentos por Tipo")
+                dados = relatorio_paciente_agrupado(paciente_id, data_inicio, data_fim)
 
-                total_geral = 0
+                if not dados:
+                    st.info("Nenhum atendimento no período.")
+                else:
+                    st.write(f"Total de registros: {len(dados)}")
+                    st.write("### Atendimentos por Tipo")
 
-                for row in dados:
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        st.write(f"**{row[0]}**")
-                    with col2:
-                        st.write(f"Qtd: {row[1]}")
-                    with col3:
-                        st.write(f"Valor: R$ {row[2]:.2f}")
-                    with col4:
-                        st.write(f"Subtotal: R$ {row[3]:.2f}")
+                    total_geral = 0
 
-                    total_geral += row[3]
-                    st.markdown("---")
+                    for row in dados:
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.write(f"**{row[0]}**")
+                        with col2:
+                            st.write(f"Qtd: {row[1]}")
+                        with col3:
+                            st.write(f"Valor: R$ {row[2]:.2f}")
+                        with col4:
+                            st.write(f"Subtotal: R$ {row[3]:.2f}")
 
-                st.markdown(f"### 💰 Total do período: **R$ {total_geral:.2f}**")
+                        total_geral += row[3]
+                        st.markdown("---")
 
-            dados_detalhados = relatorio_paciente_detalhado(paciente_id, data_inicio, data_fim)
-            if dados_detalhados:
-                dados_pdf = [(d[0], d[1], d[2]) for d in dados_detalhados]
-                periodo = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
-                pdf_buffer = gerar_pdf_relatorio_paciente(nome_paciente, periodo, dados_pdf)
+                    st.markdown(f"### 💰 Total do período: **R$ {total_geral:.2f}**")
 
-                st.download_button(
-                    "Baixar relatório do paciente (PDF)",
-                    data=pdf_buffer.getvalue(),
-                    file_name=f"relatorio_paciente_{paciente_id}_{data_inicio}_a_{data_fim}.pdf",
-                    mime="application/pdf"
+                dados_detalhados = relatorio_paciente_detalhado(
+                    paciente_id, data_inicio, data_fim
                 )
-            else:
-                st.info("Sem dados para gerar o PDF do paciente.")
+                if dados_detalhados:
+                    dados_pdf = [(d[0], d[1], d[2]) for d in dados_detalhados]
+                    pdf_buffer = gerar_pdf_relatorio_paciente(
+                        nome_paciente, periodo, dados_pdf
+                    )
+
+                    st.download_button(
+                        "Baixar relatório do paciente (PDF)",
+                        data=pdf_buffer.getvalue(),
+                        file_name=f"relatorio_{_safe_filename(nome_paciente)}_{mes_ref}.pdf",
+                        mime="application/pdf"
+                    )
+                else:
+                    st.info("Sem dados para gerar o PDF do paciente.")
 
 
 def render_relatorio_contador():
