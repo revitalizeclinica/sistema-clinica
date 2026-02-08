@@ -459,7 +459,16 @@ def render_relatorio_paciente():
         opcoes = ["Todos os pacientes do período"] + [
             f"{p[0]} - {p[1]} (CPF: {mask_cpf(p[2])})" for p in pacientes
         ]
-        escolha = st.selectbox("Selecione o paciente", opcoes)
+        if "relatorio_paciente_escolha" not in st.session_state:
+            st.session_state.relatorio_paciente_escolha = opcoes[0]
+        if st.session_state.relatorio_paciente_escolha not in opcoes:
+            st.session_state.relatorio_paciente_escolha = opcoes[0]
+
+        escolha = st.selectbox(
+            "Selecione o paciente",
+            opcoes,
+            key="relatorio_paciente_escolha"
+        )
 
         todos_pacientes = escolha == opcoes[0]
         paciente_id = None
