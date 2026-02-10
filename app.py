@@ -14,6 +14,7 @@ from screens import (
 )
 
 
+
 # Estado para controlar menus e permitir "voltar" do administrativo
 if "main_menu" not in st.session_state:
     st.session_state.main_menu = "Início"
