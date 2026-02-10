@@ -832,16 +832,715 @@ def atualizar_pagador_paciente(paciente_id, pagador_mesmo_paciente, pagador_nome
         return str(e)
 
 
+def listar_evolucoes_financeiro(filtro, data_inicio, data_fim):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            e.id,
+            e.paciente_id,
+            p.nome,
+            p.cpf,
+            e.data_registro,
+            t.descricao,
+            COALESCE(e.valor_cobrado, t.valor) AS valor
+        FROM evolucao e
+        JOIN paciente p ON e.paciente_id = p.id
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        WHERE (p.nome ILIKE %s OR p.cpf ILIKE %s)
+          AND e.data_registro::date BETWEEN %s AND %s
+        ORDER BY e.data_registro DESC
+        '''
+
+        cur.execute(sql, (f"%{filtro}%", f"%{filtro}%", data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
 
 
-    
+
+
+def listar_evolucoes_pendentes_pagamento(filtro, data_inicio, data_fim):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            e.id,
+            e.paciente_id,
+            p.nome,
+            p.cpf,
+            e.data_registro,
+            t.descricao,
+            COALESCE(e.valor_cobrado, t.valor) AS valor
+        FROM evolucao e
+        JOIN paciente p ON e.paciente_id = p.id
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        LEFT JOIN pagamento pg
+            ON pg.atendimento_id = e.id
+            AND pg.status = 'pago'
+        WHERE (p.nome ILIKE %s OR p.cpf ILIKE %s)
+          AND e.data_registro::date BETWEEN %s AND %s
+          AND pg.id IS NULL
+        ORDER BY e.data_registro DESC
+        '''
+
+        cur.execute(sql, (f"%{filtro}%", f"%{filtro}%", data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
+
+
+def listar_evolucoes_pagamentos_paciente(paciente_id, data_inicio, data_fim):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            e.id,
+            e.data_registro,
+            t.descricao,
+            COALESCE(e.valor_cobrado, t.valor) AS valor,
+            pg.status,
+            pg.data_pagamento
+        FROM evolucao e
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        LEFT JOIN LATERAL (
+            SELECT pg.status, pg.data_pagamento
+            FROM pagamento pg
+            WHERE pg.atendimento_id = e.id
+            ORDER BY pg.data_pagamento DESC NULLS LAST, pg.id DESC
+            LIMIT 1
+        ) pg ON TRUE
+        WHERE e.paciente_id = %s
+          AND e.data_registro::date BETWEEN %s AND %s
+        ORDER BY e.data_registro DESC
+        '''
+
+        cur.execute(sql, (paciente_id, data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
+def inserir_pagamento(paciente_id, atendimento_id, data_pagamento, valor, forma_pagamento, status):
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        INSERT INTO pagamento (
+            paciente_id,
+            atendimento_id,
+            data_pagamento,
+            valor,
+            forma_pagamento,
+            status
+        ) VALUES (%s, %s, %s, %s, %s, %s)
+        '''
+
+        cur.execute(sql, (
+            paciente_id,
+            atendimento_id,
+            data_pagamento,
+            valor,
+            forma_pagamento,
+            status
+        ))
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+
+
+def listar_pagamentos(filtro, data_inicio, data_fim, status, forma_pagamento):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            pg.id,
+            p.nome,
+            p.cpf,
+            e.data_registro,
+            pg.data_pagamento,
+            pg.valor,
+            pg.forma_pagamento,
+            pg.status
+        FROM pagamento pg
+        JOIN paciente p ON pg.paciente_id = p.id
+        JOIN evolucao e ON pg.atendimento_id = e.id
+        WHERE (p.nome ILIKE %s OR p.cpf ILIKE %s)
+          AND pg.data_pagamento BETWEEN %s AND %s
+          AND (%s = 'TODOS' OR pg.status = %s)
+          AND (%s = 'TODOS' OR pg.forma_pagamento = %s)
+        ORDER BY pg.data_pagamento DESC
+        '''
+
+        cur.execute(sql, (
+            f"%{filtro}%",
+            f"%{filtro}%",
+            data_inicio,
+            data_fim,
+            status,
+            status,
+            forma_pagamento,
+            forma_pagamento
+        ))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
+
+def inserir_despesa(data, descricao, categoria, valor, tipo, recorrente):
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        INSERT INTO despesa (
+            data,
+            descricao,
+            categoria,
+            valor,
+            tipo,
+            recorrente
+        ) VALUES (%s, %s, %s, %s, %s, %s)
+        '''
+
+        cur.execute(sql, (data, descricao, categoria, valor, tipo, recorrente))
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+
+
+def listar_despesas(data_inicio, data_fim, categoria, tipo):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            id,
+            data,
+            descricao,
+            categoria,
+            valor,
+            tipo,
+            recorrente
+        FROM despesa
+        WHERE data BETWEEN %s AND %s
+          AND (%s = 'TODOS' OR categoria = %s)
+          AND (%s = 'TODOS' OR tipo = %s)
+        ORDER BY data DESC
+        '''
+
+        cur.execute(sql, (
+            data_inicio,
+            data_fim,
+            categoria,
+            categoria,
+            tipo,
+            tipo
+        ))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
+
+def inserir_profissional(nome, cpf, crefito, telefone, endereco, tipo_contrato, valor_repasse_fixo, ativo):
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        INSERT INTO profissional (
+            nome,
+            cpf,
+            crefito,
+            telefone,
+            endereco,
+            tipo_contrato,
+            valor_repasse_fixo,
+            ativo
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        '''
+
+        cur.execute(sql, (nome, cpf, crefito, telefone, endereco, tipo_contrato, valor_repasse_fixo, ativo))
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+
+
+def listar_profissionais(ativos_only):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        if ativos_only:
+            sql = '''
+            SELECT id, nome, tipo_contrato, valor_repasse_fixo, ativo, cpf, crefito, telefone, endereco
+            FROM profissional
+            WHERE ativo = TRUE
+            ORDER BY nome
+            '''
+            cur.execute(sql)
+        else:
+            sql = '''
+            SELECT id, nome, tipo_contrato, valor_repasse_fixo, ativo, cpf, crefito, telefone, endereco
+            FROM profissional
+            ORDER BY nome
+            '''
+            cur.execute(sql)
+
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
 
 
 
 
+def deletar_despesa(despesa_id):
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        DELETE FROM despesa
+        WHERE id = %s
+        '''
+
+        cur.execute(sql, (despesa_id,))
+        afetados = cur.rowcount
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return afetados
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+
+def inserir_repasse_profissional(profissional_id, atendimento_id, valor, data_repasse, status):
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        INSERT INTO repasse_profissional (
+            profissional_id,
+            atendimento_id,
+            valor,
+            data_repasse,
+            status
+        ) VALUES (%s, %s, %s, %s, %s)
+        '''
+
+        cur.execute(sql, (profissional_id, atendimento_id, valor, data_repasse, status))
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+
+
+def listar_repasses(data_inicio, data_fim, status, profissional_id):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            rp.id,
+            pr.nome AS profissional,
+            p.nome AS paciente,
+            e.data_registro,
+            rp.data_repasse,
+            rp.valor,
+            rp.status
+        FROM repasse_profissional rp
+        JOIN profissional pr ON rp.profissional_id = pr.id
+        JOIN evolucao e ON rp.atendimento_id = e.id
+        JOIN paciente p ON e.paciente_id = p.id
+        WHERE rp.data_repasse BETWEEN %s AND %s
+          AND (%s = 'TODOS' OR rp.status = %s)
+          AND (%s = 0 OR rp.profissional_id = %s)
+        ORDER BY rp.data_repasse DESC
+        '''
+
+        cur.execute(sql, (
+            data_inicio,
+            data_fim,
+            status,
+            status,
+            profissional_id,
+            profissional_id
+        ))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
+
+def resumo_financeiro(data_inicio, data_fim):
+    conn = get_connection()
+    if conn is None:
+        return None
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute(
+            '''
+            SELECT status, COALESCE(SUM(valor), 0)
+            FROM pagamento
+            WHERE data_pagamento BETWEEN %s AND %s
+            GROUP BY status
+            ''',
+            (data_inicio, data_fim)
+        )
+        pagamentos = {row[0]: float(row[1]) for row in cur.fetchall()}
+
+        cur.execute(
+            '''
+            SELECT COALESCE(SUM(valor), 0)
+            FROM despesa
+            WHERE data BETWEEN %s AND %s
+            ''',
+            (data_inicio, data_fim)
+        )
+        despesas_total = float(cur.fetchone()[0] or 0)
+
+        cur.execute(
+            '''
+            SELECT status, COALESCE(SUM(valor), 0)
+            FROM repasse_profissional
+            WHERE data_repasse BETWEEN %s AND %s
+            GROUP BY status
+            ''',
+            (data_inicio, data_fim)
+        )
+        repasses = {row[0]: float(row[1]) for row in cur.fetchall()}
+
+        cur.close()
+        conn.close()
+
+        return {
+            "pagamentos": pagamentos,
+            "despesas_total": despesas_total,
+            "repasses": repasses
+        }
+
+    except Exception:
+        conn.close()
+        return None
 
 
 
+def financeiro_receita_mensal(data_inicio, data_fim):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            date_trunc('month', pg.data_pagamento)::date AS mes,
+            SUM(pg.valor) AS total
+        FROM pagamento pg
+        WHERE pg.status = 'pago'
+          AND pg.data_pagamento BETWEEN %s AND %s
+        GROUP BY mes
+        ORDER BY mes
+        '''
+
+        cur.execute(sql, (data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
 
 
+def financeiro_despesa_mensal(data_inicio, data_fim):
+    conn = get_connection()
+    if conn is None:
+        return []
 
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            date_trunc('month', d.data)::date AS mes,
+            SUM(d.valor) AS total
+        FROM despesa d
+        WHERE d.data BETWEEN %s AND %s
+        GROUP BY mes
+        ORDER BY mes
+        '''
+
+        cur.execute(sql, (data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
+
+def financeiro_pagamentos_por_status(data_inicio, data_fim):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            pg.status,
+            SUM(pg.valor) AS total
+        FROM pagamento pg
+        WHERE pg.data_pagamento BETWEEN %s AND %s
+        GROUP BY pg.status
+        ORDER BY pg.status
+        '''
+
+        cur.execute(sql, (data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
+
+def financeiro_receita_por_profissional(data_inicio, data_fim):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            COALESCE(NULLIF(e.profissional, ''), 'Não informado') AS profissional,
+            SUM(pg.valor) AS total
+        FROM pagamento pg
+        JOIN evolucao e ON pg.atendimento_id = e.id
+        WHERE pg.status = 'pago'
+          AND pg.data_pagamento BETWEEN %s AND %s
+        GROUP BY profissional
+        ORDER BY total DESC
+        '''
+
+        cur.execute(sql, (data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
+
+def financeiro_receita_por_tipo_atendimento(data_inicio, data_fim):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            t.descricao AS tipo,
+            SUM(pg.valor) AS total
+        FROM pagamento pg
+        JOIN evolucao e ON pg.atendimento_id = e.id
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        WHERE pg.status = 'pago'
+          AND pg.data_pagamento BETWEEN %s AND %s
+        GROUP BY t.descricao
+        ORDER BY total DESC
+        '''
+
+        cur.execute(sql, (data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
+
+def financeiro_repasse_mensal(data_inicio, data_fim):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            date_trunc('month', rp.data_repasse)::date AS mes,
+            SUM(rp.valor) AS total
+        FROM repasse_profissional rp
+        WHERE rp.status <> 'cancelado'
+          AND rp.data_repasse BETWEEN %s AND %s
+        GROUP BY mes
+        ORDER BY mes
+        '''
+
+        cur.execute(sql, (data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []

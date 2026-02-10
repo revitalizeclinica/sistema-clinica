@@ -24,7 +24,26 @@ from database import (
     listar_notas_fiscais_mes,
     definir_pagador_nf,
     buscar_pagador_paciente,
-    atualizar_pagador_paciente
+    atualizar_pagador_paciente,
+    listar_evolucoes_financeiro,
+    listar_evolucoes_pendentes_pagamento,
+    listar_evolucoes_pagamentos_paciente,
+    inserir_pagamento,
+    listar_pagamentos,
+    inserir_despesa,
+    listar_despesas,
+    deletar_despesa,
+    inserir_profissional,
+    listar_profissionais,
+    inserir_repasse_profissional,
+    listar_repasses,
+    resumo_financeiro,
+    financeiro_receita_mensal,
+    financeiro_despesa_mensal,
+    financeiro_pagamentos_por_status,
+    financeiro_receita_por_profissional,
+    financeiro_receita_por_tipo_atendimento,
+    financeiro_repasse_mensal
 )
 from pdf_utils import gerar_pdf_relatorio_paciente
 from utils import mask_cpf, mask_email, mask_nome, mask_phone, only_digits
@@ -42,6 +61,23 @@ def _mes_range(mes_ref):
     data_fim = date(mes_ref.year, mes_ref.month, ultimo_dia)
     return data_inicio, data_fim
 
+def _shift_month(data_ref, months):
+    ano = data_ref.year + (data_ref.month - 1 + months) // 12
+    mes = (data_ref.month - 1 + months) % 12 + 1
+    dia = min(data_ref.day, calendar.monthrange(ano, mes)[1])
+    return date(ano, mes, dia)
+
+
+def _month_list(data_inicio, data_fim):
+    meses = []
+    atual = date(data_inicio.year, data_inicio.month, 1)
+    fim = date(data_fim.year, data_fim.month, 1)
+    while atual <= fim:
+        meses.append(atual)
+        atual = _shift_month(atual, 1)
+    return meses
+
+
 
 
 def _safe_filename(value):
@@ -50,6 +86,22 @@ def _safe_filename(value):
     cleaned = re.sub(r"[^A-Za-z0-9]+", "_", value.strip())
     return cleaned.strip("_") or "paciente"
 
+
+
+STATUS_PAGAMENTO_OPCOES = ["pago", "pendente", "atrasado", "cancelado"]
+STATUS_REPASSE_OPCOES = ["pendente", "pago", "cancelado"]
+FORMA_PAGAMENTO_OPCOES = ["pix", "dinheiro", "transferencia", "cartao", "boleto", "outro"]
+DESPESA_TIPO_OPCOES = ["fixa", "variavel"]
+DESPESA_CATEGORIA_OPCOES = [
+    "combustivel",
+    "transporte",
+    "material",
+    "imposto",
+    "repasse_profissional",
+    "marketing",
+    "sistema",
+    "outros"
+]
 
 def render_inicio():
     st.markdown(
@@ -198,71 +250,102 @@ def render_listar_pacientes():
 def render_nova_evolucao():
     st.subheader("Registrar Nova Evolução")
 
-    filtro = st.text_input("Buscar paciente por nome ou CPF")
-    pacientes = listar_pacientes(filtro)
+    if "nova_evo_pacientes" not in st.session_state:
+        st.session_state.nova_evo_pacientes = []
+    if "nova_evo_filtro" not in st.session_state:
+        st.session_state.nova_evo_filtro = ""
+    if "nova_evo_busca_feita" not in st.session_state:
+        st.session_state.nova_evo_busca_feita = False
+
+    with st.form("form_busca_paciente"):
+        filtro = st.text_input(
+            "Buscar paciente por nome ou CPF",
+            value=st.session_state.nova_evo_filtro,
+            key="nova_evo_filtro_input"
+        )
+        buscar = st.form_submit_button("Buscar")
+
+    if buscar:
+        st.session_state.nova_evo_filtro = filtro
+        st.session_state.nova_evo_pacientes = listar_pacientes(filtro)
+        st.session_state.nova_evo_busca_feita = True
+
+    pacientes = st.session_state.nova_evo_pacientes
 
     if not pacientes:
-        st.info("Nenhum paciente encontrado.")
-    else:
-        opcoes = [f"{p[0]} - {p[1]} (CPF: {mask_cpf(p[2])})" for p in pacientes]
-        escolha = st.selectbox("Selecione o paciente", opcoes)
-        paciente_id = int(escolha.split(" - ")[0])
+        if st.session_state.nova_evo_busca_feita:
+            st.info("Nenhum paciente encontrado.")
+        else:
+            st.info("Faça uma busca para selecionar o paciente.")
+        return
 
-        with st.form("form_evolucao", clear_on_submit=True):
-            data_registro = st.date_input("Data do atendimento")
-            profissional = st.text_input("Profissional responsável")
+    opcoes = [f"{p[0]} - {p[1]} (CPF: {mask_cpf(p[2])})" for p in pacientes]
+    escolha = st.selectbox("Selecione o paciente", opcoes, key="nova_evo_paciente_select")
+    paciente_id = int(escolha.split(" - ")[0])
 
-            tipos = listar_tipos_atendimento_com_valor()
+    with st.form("form_evolucao", clear_on_submit=True):
+        data_registro = st.date_input("Data do atendimento")
 
-            if not tipos:
-                st.info("Nenhum tipo de atendimento cadastrado.")
-                st.stop()
+        profissionais = listar_profissionais(True)
+        if not profissionais:
+            st.error("Cadastre um profissional ativo no Financeiro para continuar.")
+            st.stop()
 
-            opcoes = ["Selecione o tipo de atendimento"] + [
-                f"{t[0]} - {t[2]} (R$ {t[3]:.2f})" for t in tipos
-            ]
-            tipo_escolhido = st.selectbox("Tipo de atendimento", opcoes)
+        op_prof = [f"{p[0]} - {p[1]}" for p in profissionais]
+        escolha_prof = st.selectbox("Profissional responsável", op_prof)
+        profissional = escolha_prof.split(" - ", 1)[1]
 
-            tipo_id = None
-            valor_cobrado = None
-            if tipo_escolhido != opcoes[0]:
-                tipo_id = int(tipo_escolhido.split(" - ")[0])
-                tipo_dict = {t[0]: t for t in tipos}
-                valor_cobrado = float(tipo_dict[tipo_id][3])
+        tipos = listar_tipos_atendimento_com_valor()
 
-            resumo = st.text_area("Resumo da evolução")
-            condutas = st.text_area("Condutas realizadas")
-            resposta = st.text_area("Resposta do paciente")
-            objetivos = st.text_area("Objetivos para o próximo período")
-            observacoes = st.text_area("Observações adicionais")
+        if not tipos:
+            st.info("Nenhum tipo de atendimento cadastrado.")
+            st.stop()
 
-            enviado = st.form_submit_button("Salvar evolução")
+        opcoes = ["Selecione o tipo de atendimento"] + [
+            f"{t[0]} - {t[2]} (R$ {t[3]:.2f})" for t in tipos
+        ]
+        tipo_escolhido = st.selectbox("Tipo de atendimento", opcoes)
 
-            if enviado:
-                if not profissional:
-                    st.error("Informe o nome do profissional.")
-                elif tipo_id is None:
-                    st.error("Selecione o tipo de atendimento.")
-                elif valor_cobrado is None:
-                    st.error("Valor do atendimento não encontrado.")
+        tipo_id = None
+        valor_cobrado = None
+        if tipo_escolhido != opcoes[0]:
+            tipo_id = int(tipo_escolhido.split(" - ")[0])
+            tipo_dict = {t[0]: t for t in tipos}
+            valor_cobrado = float(tipo_dict[tipo_id][3])
+
+        resumo = st.text_area("Resumo da evolução")
+        condutas = st.text_area("Condutas realizadas")
+        resposta = st.text_area("Resposta do paciente")
+        objetivos = st.text_area("Objetivos para o próximo período")
+        observacoes = st.text_area("Observações adicionais")
+
+        enviado = st.form_submit_button("Salvar evolução")
+
+        if enviado:
+            if not profissional:
+                st.error("Informe o nome do profissional.")
+            elif tipo_id is None:
+                st.error("Selecione o tipo de atendimento.")
+            elif valor_cobrado is None:
+                st.error("Valor do atendimento não encontrado.")
+            else:
+                resultado = inserir_evolucao(
+                    paciente_id,
+                    tipo_id,
+                    data_registro,
+                    profissional,
+                    resumo,
+                    condutas,
+                    resposta,
+                    objetivos,
+                    observacoes,
+                    valor_cobrado
+                )
+
+                if resultado is True:
+                    st.success("Evolução registrada com sucesso!")
                 else:
-                    resultado = inserir_evolucao(
-                        paciente_id,
-                        tipo_id,
-                        data_registro,
-                        profissional,
-                        resumo,
-                        condutas,
-                        resposta,
-                        objetivos,
-                        observacoes,
-                        valor_cobrado
-                    )
-
-                    if resultado is True:
-                        st.success("Evolução registrada com sucesso!")
-                    else:
-                        st.error(f"Erro ao salvar: {resultado}")
+                    st.error(f"Erro ao salvar: {resultado}")
 
 
 def render_historico_paciente():
@@ -394,7 +477,14 @@ def render_avaliacao_inicial():
                     with col1:
                         data_avaliacao = st.date_input("Data da avaliação", value=date.today())
                     with col2:
-                        profissional = st.text_input("Profissional")
+                        profissionais = listar_profissionais(True)
+                        if not profissionais:
+                            st.error("Cadastre um profissional ativo no Financeiro para continuar.")
+                            st.stop()
+
+                        op_prof = [f"{p[0]} - {p[1]}" for p in profissionais]
+                        escolha_prof = st.selectbox("Profissional", op_prof)
+                        profissional = escolha_prof.split(" - ", 1)[1]
 
                     queixa = st.text_area("Queixa principal")
                     diagnostico = st.text_area("Diagnóstico")
@@ -704,6 +794,933 @@ def render_relatorio_geral():
             df.insert(0, "Destaque", ["TOP" if i == 0 else "" for i in range(len(df))])
             st.dataframe(df, use_container_width=True)
 
+
+
+def render_cadastrar_profissional():
+    st.subheader("Cadastrar Profissional")
+
+    _botao_voltar_inicio("voltar_profissional")
+
+    st.markdown("### Registrar profissional")
+
+    nome_prof = st.text_input("Nome", key="prof_nome")
+    cpf_prof = st.text_input("CPF", key="prof_cpf")
+    crefito_prof = st.text_input("CREFITO", key="prof_crefito")
+    telefone_prof = st.text_input("Telefone", key="prof_telefone")
+    endereco_prof = st.text_input("Endereço", key="prof_endereco")
+    tipo_contrato = st.text_input("Tipo de contrato", key="prof_contrato")
+    valor_fixo = st.number_input(
+        "Valor fixo de repasse (R$)",
+        min_value=0.0,
+        max_value=10000.0,
+        value=0.0,
+        step=1.0,
+        format="%.2f",
+        key="prof_valor_fixo"
+    )
+    ativo = st.checkbox("Ativo", value=True, key="prof_ativo")
+
+    if st.button("Salvar profissional", key="prof_salvar"):
+        cpf_digits = only_digits(cpf_prof)
+        telefone_digits = only_digits(telefone_prof)
+
+        if not nome_prof.strip():
+            st.error("Nome é obrigatório.")
+        elif not cpf_digits:
+            st.error("CPF é obrigatório.")
+        elif not crefito_prof.strip():
+            st.error("CREFITO é obrigatório.")
+        elif not telefone_digits:
+            st.error("Telefone é obrigatório.")
+        elif valor_fixo <= 0:
+            st.error("Informe um valor fixo de repasse.")
+        else:
+            resultado = inserir_profissional(
+                nome_prof.strip(),
+                cpf_digits,
+                crefito_prof.strip(),
+                telefone_digits,
+                endereco_prof.strip(),
+                tipo_contrato.strip(),
+                valor_fixo,
+                ativo
+            )
+            if resultado is True:
+                st.success("Profissional registrado com sucesso!")
+            else:
+                st.error(f"Erro ao salvar: {resultado}")
+
+    st.markdown("---")
+    st.markdown("### Profissionais")
+
+    ativos_only = st.checkbox("Mostrar apenas ativos", value=True, key="prof_ativos_only")
+    dados = listar_profissionais(ativos_only)
+
+    if not dados:
+        st.info("Nenhum profissional encontrado.")
+    else:
+        import pandas as pd
+
+        dados_fmt = []
+        for p in dados:
+            dados_fmt.append([
+                p[0],
+                p[1],
+                p[5],
+                p[6],
+                p[7],
+                p[8],
+                p[2],
+                p[3],
+                p[4]
+            ])
+
+        df = pd.DataFrame(
+            dados_fmt,
+            columns=[
+                "ID",
+                "Nome",
+                "CPF",
+                "CREFITO",
+                "Telefone",
+                "Endereço",
+                "Tipo contrato",
+                "Valor repasse (R$)",
+                "Ativo"
+            ]
+        )
+        st.dataframe(df, use_container_width=True)
+
+
+def render_financeiro_graficos():
+    st.subheader("Gráficos Financeiros")
+
+    _botao_voltar_inicio("voltar_fin_graficos")
+
+    min_graf_date = date(2026, 1, 1)
+    hoje = date.today()
+    fim_ref = date(hoje.year, hoje.month, 1)
+    inicio_ref = _shift_month(fim_ref, -11)
+    if inicio_ref < min_graf_date:
+        inicio_ref = min_graf_date
+
+    data_inicio = date(inicio_ref.year, inicio_ref.month, 1)
+    ultimo_dia = calendar.monthrange(fim_ref.year, fim_ref.month)[1]
+    data_fim = date(fim_ref.year, fim_ref.month, ultimo_dia)
+
+    st.caption(
+        f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
+    )
+
+    receitas = financeiro_receita_mensal(data_inicio, data_fim)
+    despesas = financeiro_despesa_mensal(data_inicio, data_fim)
+    repasses = financeiro_repasse_mensal(data_inicio, data_fim)
+
+    receita_map = {r[0]: float(r[1] or 0) for r in receitas}
+    despesa_map = {d[0]: float(d[1] or 0) for d in despesas}
+    repasse_map = {r[0]: float(r[1] or 0) for r in repasses}
+
+    meses = _month_list(data_inicio, data_fim)
+    linhas = []
+    for mes in meses:
+        receita = receita_map.get(mes, 0.0)
+        despesa = despesa_map.get(mes, 0.0)
+        repasse = repasse_map.get(mes, 0.0)
+        linhas.append({
+            "Mês": mes.strftime("%Y-%m"),
+            "Receita": receita,
+            "Despesa": despesa,
+            "Lucro": receita - despesa - repasse
+        })
+
+    st.markdown("### Receita e Despesa Mensal")
+    if not linhas:
+        st.info("Nenhum dado no período.")
+    else:
+        import pandas as pd
+        import altair as alt
+
+        df = pd.DataFrame(linhas)
+        df_long = df.melt(id_vars=["Mês"], value_vars=["Receita", "Despesa"],
+                          var_name="Categoria", value_name="Valor")
+        df_long["Label"] = df_long["Valor"].apply(lambda v: f"R$ {v:,.2f}")
+        max_val = df_long["Valor"].max() if not df_long.empty else 0
+
+        chart = (
+            alt.Chart(df_long)
+            .mark_bar()
+            .encode(
+                x=alt.X(
+                    "Mês:N",
+                    sort=None,
+                    axis=alt.Axis(labelAngle=0, labelPadding=12),
+                    scale=alt.Scale(paddingInner=0.25, paddingOuter=0.25)
+                ),
+                y=alt.Y(
+                    "Valor:Q",
+                    scale=alt.Scale(domain=[0, max_val]),
+                    axis=alt.Axis(format=",.2f")
+                ),
+                color=alt.Color(
+                    "Categoria:N",
+                    scale=alt.Scale(
+                        domain=["Receita", "Despesa"],
+                        range=["#2563eb", "#dc2626"]
+                    )
+                ),
+                xOffset="Categoria:N"
+            )
+        )
+
+        labels = (
+            alt.Chart(df_long)
+            .mark_text(dy=-6)
+            .encode(
+                x=alt.X(
+                    "Mês:N",
+                    sort=None,
+                    axis=alt.Axis(labelAngle=0, labelPadding=12),
+                    scale=alt.Scale(paddingInner=0.25, paddingOuter=0.25)
+                ),
+                y=alt.Y("Valor:Q"),
+                text=alt.Text("Label:N"),
+                xOffset="Categoria:N"
+            )
+        )
+        st.altair_chart(chart + labels, use_container_width=True)
+
+    st.markdown("### Lucro Mensal")
+    if linhas:
+        import pandas as pd
+        import altair as alt
+
+        df_lucro = pd.DataFrame(linhas)
+        df_lucro["Label"] = df_lucro["Lucro"].apply(lambda v: f"R$ {v:,.2f}")
+        min_lucro = df_lucro["Lucro"].min() if not df_lucro.empty else 0
+        max_lucro = df_lucro["Lucro"].max() if not df_lucro.empty else 0
+        domain_min = min(0, min_lucro)
+        domain_max = max(0, max_lucro)
+        chart_lucro = (
+            alt.Chart(df_lucro)
+            .mark_bar()
+            .encode(
+                x=alt.X("Mês:N", sort=None, axis=alt.Axis(labelAngle=0)),
+                y=alt.Y(
+                    "Lucro:Q",
+                    scale=alt.Scale(domain=[domain_min, domain_max]),
+                    axis=alt.Axis(format=",.2f")
+                ),
+                color=alt.condition(
+                    alt.datum.Lucro >= 0,
+                    alt.value("#2563eb"),
+                    alt.value("#dc2626")
+                )
+            )
+        )
+
+        labels_lucro = (
+            alt.Chart(df_lucro)
+            .mark_text(dy=-6)
+            .encode(
+                x=alt.X("Mês:N", sort=None, axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Lucro:Q"),
+                text=alt.Text("Label:N")
+            )
+        )
+        st.altair_chart(chart_lucro + labels_lucro, use_container_width=True)
+
+    st.markdown("### Pagamentos por status")
+    dados_status = financeiro_pagamentos_por_status(data_inicio, data_fim)
+    if not dados_status:
+        st.info("Nenhum pagamento encontrado no período.")
+    else:
+        import pandas as pd
+        import altair as alt
+
+        df_status = pd.DataFrame(dados_status, columns=["Status", "Total (R$)"])
+        df_status["Total (R$)"] = df_status["Total (R$)"].astype(float)
+        df_status["Label"] = df_status["Total (R$)"] .apply(lambda v: f"R$ {v:,.2f}")
+        max_status = df_status["Total (R$)"].max() if not df_status.empty else 0
+        chart_status = (
+            alt.Chart(df_status)
+            .mark_bar(color="#2563eb")
+            .encode(
+                x=alt.X("Status:N", sort=None, axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Total (R$):Q", scale=alt.Scale(domain=[0, max_status]), axis=alt.Axis(format=",.2f"))
+            )
+        )
+
+        labels_status = (
+            alt.Chart(df_status)
+            .mark_text(dy=-6)
+            .encode(
+                x=alt.X("Status:N", sort=None, axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Total (R$):Q"),
+                text=alt.Text("Label:N")
+            )
+        )
+        st.altair_chart(chart_status + labels_status, use_container_width=True)
+
+    meses_det = _month_list(data_inicio, data_fim)
+    if not meses_det:
+        st.info("Nenhum mês no período.")
+        return
+
+    mes_det_date = date(data_fim.year, data_fim.month, 1)
+    det_inicio, det_fim = _mes_range(mes_det_date)
+
+    st.caption(f"Referente ao mês: {mes_det_date.strftime('%Y-%m')}")
+
+    st.markdown("### Receita por profissional")
+    dados_prof = financeiro_receita_por_profissional(det_inicio, det_fim)
+    if not dados_prof:
+        st.info("Nenhuma receita encontrada no período.")
+    else:
+        import pandas as pd
+        import altair as alt
+
+        df_prof = pd.DataFrame(dados_prof, columns=["Profissional", "Total (R$)"])
+        df_prof["Total (R$)"] = df_prof["Total (R$)"].astype(float)
+        df_prof["Label"] = df_prof["Total (R$)"] .apply(lambda v: f"R$ {v:,.2f}")
+        df_prof["Cor"] = ["Azul 1" if i % 2 == 0 else "Azul 2" for i in range(len(df_prof))]
+        max_prof = df_prof["Total (R$)"].max() if not df_prof.empty else 0
+        chart_prof = (
+            alt.Chart(df_prof)
+            .mark_bar()
+            .encode(
+                x=alt.X("Profissional:N", sort='-y', axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Total (R$):Q", scale=alt.Scale(domain=[0, max_prof]), axis=alt.Axis(format=",.2f")),
+                color=alt.Color(
+                    "Cor:N",
+                    scale=alt.Scale(domain=["Azul 1", "Azul 2"], range=["#2563eb", "#60a5fa"]),
+                    legend=None
+                ),
+                tooltip=[
+                    alt.Tooltip("Profissional:N"),
+                    alt.Tooltip("Total (R$):Q", format=",.2f")
+                ]
+            )
+        )
+
+        labels_prof = (
+            alt.Chart(df_prof)
+            .mark_text(dy=-6)
+            .encode(
+                x=alt.X("Profissional:N", sort='-y', axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Total (R$):Q"),
+                text=alt.Text("Label:N")
+            )
+        )
+        st.altair_chart(chart_prof + labels_prof, use_container_width=True)
+
+    st.markdown("### Receita por tipo de atendimento")
+    dados_tipo = financeiro_receita_por_tipo_atendimento(det_inicio, det_fim)
+    if not dados_tipo:
+        st.info("Nenhuma receita encontrada no período.")
+    else:
+        import pandas as pd
+        import altair as alt
+
+        df_tipo = pd.DataFrame(dados_tipo, columns=["Tipo", "Total (R$)"])
+        df_tipo["Total (R$)"] = df_tipo["Total (R$)"] .astype(float)
+        df_tipo["Label"] = df_tipo["Total (R$)"] .apply(lambda v: f"R$ {v:,.2f}")
+        df_tipo["Cor"] = ["Azul 1" if i % 2 == 0 else "Azul 2" for i in range(len(df_tipo))]
+        max_tipo = df_tipo["Total (R$)"].max() if not df_tipo.empty else 0
+        chart_tipo = (
+            alt.Chart(df_tipo)
+            .mark_bar()
+            .encode(
+                x=alt.X("Tipo:N", sort='-y', axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Total (R$):Q", scale=alt.Scale(domain=[0, max_tipo]), axis=alt.Axis(format=",.2f")),
+                color=alt.Color(
+                    "Cor:N",
+                    scale=alt.Scale(domain=["Azul 1", "Azul 2"], range=["#2563eb", "#60a5fa"]),
+                    legend=None
+                ),
+                tooltip=[
+                    alt.Tooltip("Tipo:N"),
+                    alt.Tooltip("Total (R$):Q", format=",.2f")
+                ]
+            )
+        )
+
+        labels_tipo = (
+            alt.Chart(df_tipo)
+            .mark_text(dy=-6)
+            .encode(
+                x=alt.X("Tipo:N", sort='-y', axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Total (R$):Q"),
+                text=alt.Text("Label:N")
+            )
+        )
+        st.altair_chart(chart_tipo + labels_tipo, use_container_width=True)
+
+
+
+def render_financeiro():
+    st.subheader("Financeiro")
+
+    _botao_voltar_inicio("voltar_financeiro")
+
+    if "fin_periodo" not in st.session_state:
+        st.session_state.fin_periodo = date.today()
+
+    with st.form("fin_periodo_form"):
+        mes_ref = st.date_input(
+            "Mês de referência",
+            value=st.session_state.fin_periodo,
+            key="fin_mes_ref"
+        )
+        aplicar_periodo = st.form_submit_button("Aplicar período")
+
+    if aplicar_periodo:
+        st.session_state.fin_periodo = mes_ref
+        st.session_state.pg_busca_feita = False
+        st.session_state.pg_evolucoes = []
+        st.session_state.rep_busca_feita = False
+        st.session_state.rep_evolucoes = []
+
+    mes_ref = st.session_state.fin_periodo
+    data_inicio, data_fim = _mes_range(mes_ref)
+
+    st.caption(
+        f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
+    )
+
+    tab_resumo, tab_pagamentos, tab_despesas, tab_repasses = st.tabs(
+        ["Resumo", "Pagamentos", "Despesas", "Repasses"]
+    )
+
+    with tab_resumo:
+        resumo = resumo_financeiro(data_inicio, data_fim)
+        if not resumo:
+            st.info("Nenhum dado financeiro no período.")
+        else:
+            pagamentos = resumo.get("pagamentos", {})
+            despesas_total = resumo.get("despesas_total", 0)
+            repasses = resumo.get("repasses", {})
+
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Recebido", f"R$ {pagamentos.get('pago', 0):.2f}")
+            with col2:
+                st.metric("Pendente", f"R$ {pagamentos.get('pendente', 0):.2f}")
+            with col3:
+                st.metric("Atrasado", f"R$ {pagamentos.get('atrasado', 0):.2f}")
+            with col4:
+                st.metric("Cancelado", f"R$ {pagamentos.get('cancelado', 0):.2f}")
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Despesas", f"R$ {despesas_total:.2f}")
+            with col2:
+                st.metric("Repasses pendentes", f"R$ {repasses.get('pendente', 0):.2f}")
+            with col3:
+                st.metric("Repasses pagos", f"R$ {repasses.get('pago', 0):.2f}")
+
+    with tab_pagamentos:
+        st.markdown("### Registrar pagamento")
+
+        if "pg_evolucoes" not in st.session_state:
+            st.session_state.pg_evolucoes = []
+        if "pg_busca_feita" not in st.session_state:
+            st.session_state.pg_busca_feita = False
+        if "pg_filtro" not in st.session_state:
+            st.session_state.pg_filtro = ""
+
+        with st.form("pg_busca_form"):
+            filtro_evolucao = st.text_input(
+                "Buscar paciente (nome ou CPF)",
+                value=st.session_state.pg_filtro,
+                key="pg_busca_evo"
+            )
+            buscar = st.form_submit_button("Buscar atendimentos")
+
+        if buscar:
+            st.session_state.pg_filtro = filtro_evolucao
+            st.session_state.pg_evolucoes = listar_evolucoes_pendentes_pagamento(
+                filtro_evolucao,
+                data_inicio,
+                data_fim
+            )
+            st.session_state.pg_busca_feita = True
+
+        evolucoes = st.session_state.pg_evolucoes
+
+        if not evolucoes:
+            if st.session_state.pg_busca_feita:
+                st.info("Nenhum atendimento encontrado no período.")
+            else:
+                st.info("Faça uma busca para listar atendimentos.")
+        else:
+            grupos = {}
+            for evo in evolucoes:
+                paciente_id = evo[1]
+                if paciente_id not in grupos:
+                    grupos[paciente_id] = {
+                        "nome": evo[2],
+                        "cpf": evo[3],
+                        "evolucoes": []
+                    }
+                grupos[paciente_id]["evolucoes"].append(evo)
+
+            opcoes = []
+            mapa = {}
+            for paciente_id in sorted(grupos, key=lambda k: grupos[k]["nome"].lower()):
+                info = grupos[paciente_id]
+                total = sum(float(e[6]) for e in info["evolucoes"])
+                qtde = len(info["evolucoes"])
+                cpf_mask = mask_cpf(info["cpf"])
+                label = (
+                    f"{paciente_id} - {info['nome']} (CPF: {cpf_mask}) "
+                    f"- {qtde} atendimentos - Total R$ {total:.2f}"
+                )
+                opcoes.append(label)
+                mapa[label] = paciente_id
+
+            escolha = st.selectbox("Paciente", opcoes, key="pg_paciente")
+            paciente_id = mapa.get(escolha)
+            info = grupos.get(paciente_id, {})
+            evolucoes_paciente = info.get("evolucoes", [])
+            total_paciente = sum(float(e[6]) for e in evolucoes_paciente)
+
+            col1, col2 = st.columns(2)
+            with col1:
+                data_pagamento = st.date_input(
+                    "Data do pagamento",
+                    value=date.today(),
+                    key="pg_data_pagamento"
+                )
+            with col2:
+                st.metric("Total no período", f"R$ {total_paciente:.2f}")
+            st.caption(f"{len(evolucoes_paciente)} atendimentos no período.")
+
+            forma_pagamento = st.selectbox(
+                "Forma de pagamento",
+                FORMA_PAGAMENTO_OPCOES,
+                key="pg_forma"
+            )
+            status_pagamento = st.selectbox(
+                "Status",
+                STATUS_PAGAMENTO_OPCOES,
+                index=0,
+                key="pg_status"
+            )
+
+            with st.expander("Ver atendimentos do paciente"):
+                historico = listar_evolucoes_pagamentos_paciente(
+                    paciente_id,
+                    data_inicio,
+                    data_fim
+                )
+                if not historico:
+                    st.info("Nenhum atendimento no período.")
+                else:
+                    import pandas as pd
+
+                    df_hist = pd.DataFrame(
+                        historico,
+                        columns=["ID", "Data", "Tipo", "Valor", "Status", "Data pagamento"]
+                    )
+                    df_hist["Status"] = df_hist["Status"].fillna("sem pagamento")
+                    st.dataframe(df_hist, use_container_width=True)
+
+            st.caption("Ao marcar como pago, os atendimentos somem da lista para evitar duplicidade.")
+
+            if st.button("Salvar pagamento", key="pg_salvar"):
+                if not evolucoes_paciente:
+                    st.error("Selecione um paciente com atendimentos no período.")
+                else:
+                    erros = []
+                    for evo in evolucoes_paciente:
+                        resultado = inserir_pagamento(
+                            paciente_id,
+                            evo[0],
+                            data_pagamento,
+                            float(evo[6]),
+                            forma_pagamento,
+                            status_pagamento
+                        )
+                        if resultado is not True:
+                            erros.append(resultado)
+
+                    if not erros:
+                        st.success("Pagamento registrado com sucesso!")
+                        if status_pagamento == "pago":
+                            st.session_state.pg_evolucoes = listar_evolucoes_pendentes_pagamento(
+                                st.session_state.pg_filtro,
+                                data_inicio,
+                                data_fim
+                            )
+                            st.session_state.pg_busca_feita = True
+                            if "pg_paciente" in st.session_state:
+                                del st.session_state["pg_paciente"]
+                            st.rerun()
+                    else:
+                        st.error(f"Erro ao salvar: {erros[0]}")
+
+        st.markdown("---")
+        st.markdown("### Pagamentos")
+
+        if "pg_list_dados" not in st.session_state:
+            st.session_state.pg_list_dados = None
+
+        with st.form("pg_list_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                filtro_pag = st.text_input("Buscar paciente (nome ou CPF)", key="pg_filtro_list")
+                status_filtro = st.selectbox(
+                    "Status",
+                    ["TODOS"] + STATUS_PAGAMENTO_OPCOES,
+                    key="pg_status_list"
+                )
+            with col2:
+                forma_filtro = st.selectbox(
+                    "Forma de pagamento",
+                    ["TODOS"] + FORMA_PAGAMENTO_OPCOES,
+                    key="pg_forma_list"
+                )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                data_inicio_pag = st.date_input(
+                    "Data inicial",
+                    value=data_inicio,
+                    key="pg_list_inicio"
+                )
+            with col2:
+                data_fim_pag = st.date_input(
+                    "Data final",
+                    value=data_fim,
+                    key="pg_list_fim"
+                )
+
+            buscar_list = st.form_submit_button("Buscar pagamentos")
+
+        if buscar_list:
+            st.session_state.pg_list_dados = listar_pagamentos(
+                filtro_pag,
+                data_inicio_pag,
+                data_fim_pag,
+                status_filtro,
+                forma_filtro
+            )
+
+        dados = st.session_state.pg_list_dados
+
+        if buscar_list or dados is not None:
+            if not dados:
+                st.info("Nenhum pagamento encontrado.")
+            else:
+                import pandas as pd
+
+                df = pd.DataFrame(
+                    dados,
+                    columns=[
+                        "ID",
+                        "Paciente",
+                        "CPF",
+                        "Data atendimento",
+                        "Data pagamento",
+                        "Valor",
+                        "Forma",
+                        "Status"
+                    ]
+                )
+
+                df_resumo = (
+                    df.groupby(["Paciente", "CPF"], as_index=False)
+                    .agg({"Valor": "sum", "ID": "count"})
+                )
+                df_resumo = df_resumo.rename(
+                    columns={"Valor": "Total (R$)", "ID": "Atendimentos"}
+                )
+                st.dataframe(df_resumo, use_container_width=True)
+
+                with st.expander("Ver detalhes por atendimento"):
+                    st.dataframe(df, use_container_width=True)
+
+    with tab_despesas:
+        st.markdown("### Registrar despesa")
+
+        with st.form("form_despesa"):
+            col1, col2 = st.columns(2)
+            with col1:
+                data_despesa = st.date_input(
+                    "Data",
+                    value=date.today(),
+                    key="desp_data"
+                )
+            with col2:
+                valor_despesa = st.number_input(
+                    "Valor",
+                    min_value=0.0,
+                    value=0.0,
+                    step=1.0,
+                    format="%.2f",
+                    key="desp_valor"
+                )
+
+            descricao = st.text_input("Descrição", key="desp_desc")
+            categoria = st.selectbox(
+                "Categoria",
+                DESPESA_CATEGORIA_OPCOES,
+                key="desp_categoria"
+            )
+            tipo_despesa = st.selectbox(
+                "Tipo",
+                DESPESA_TIPO_OPCOES,
+                key="desp_tipo"
+            )
+            recorrente = st.checkbox("Recorrente", key="desp_recorrente")
+
+            salvar = st.form_submit_button("Salvar despesa")
+
+        if salvar:
+            if not descricao:
+                st.error("Descrição é obrigatória.")
+            else:
+                resultado = inserir_despesa(
+                    data_despesa,
+                    descricao,
+                    categoria,
+                    valor_despesa,
+                    tipo_despesa,
+                    recorrente
+                )
+
+                if resultado is True:
+                    st.success("Despesa registrada com sucesso!")
+                else:
+                    st.error(f"Erro ao salvar: {resultado}")
+
+        st.markdown("---")
+        st.markdown("### Despesas")
+
+        if "desp_list_dados" not in st.session_state:
+            st.session_state.desp_list_dados = None
+
+        col1, col2 = st.columns(2)
+        with col1:
+            data_inicio_d = st.date_input(
+                "Data inicial",
+                value=data_inicio,
+                key="desp_inicio"
+            )
+        with col2:
+            data_fim_d = st.date_input(
+                "Data final",
+                value=data_fim,
+                key="desp_fim"
+            )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            categoria_filtro = st.selectbox(
+                "Categoria",
+                ["TODOS"] + DESPESA_CATEGORIA_OPCOES,
+                key="desp_cat_filtro"
+            )
+        with col2:
+            tipo_filtro = st.selectbox(
+                "Tipo",
+                ["TODOS"] + DESPESA_TIPO_OPCOES,
+                key="desp_tipo_filtro"
+            )
+
+        if st.button("Buscar despesas", key="desp_buscar"):
+            st.session_state.desp_list_dados = listar_despesas(
+                data_inicio_d,
+                data_fim_d,
+                categoria_filtro,
+                tipo_filtro
+            )
+
+        dados = st.session_state.desp_list_dados
+
+        if dados is not None:
+            if not dados:
+                st.info("Nenhuma despesa encontrada.")
+            else:
+                import pandas as pd
+
+                df = pd.DataFrame(
+                    dados,
+                    columns=["ID", "Data", "Descrição", "Categoria", "Valor", "Tipo", "Recorrente"]
+                )
+                st.dataframe(df, use_container_width=True)
+
+                st.markdown("### Excluir despesa")
+                opcoes = [
+                    f"{d[0]} - {d[1]} - {d[2]} - R$ {float(d[4]):.2f}"
+                    for d in dados
+                ]
+                escolha = st.selectbox("Selecione a despesa", opcoes, key="desp_delete_select")
+                despesa_id = int(escolha.split(" - ")[0])
+                confirmar = st.checkbox("Confirmar exclusão", key="desp_delete_confirm")
+
+                if st.button("Excluir despesa", key="desp_delete_btn"):
+                    if not confirmar:
+                        st.error("Confirme a exclusão para continuar.")
+                    else:
+                        resultado = deletar_despesa(despesa_id)
+                        if resultado == 1:
+                            st.success("Despesa excluída com sucesso!")
+                            st.session_state.desp_list_dados = listar_despesas(
+                                data_inicio_d,
+                                data_fim_d,
+                                categoria_filtro,
+                                tipo_filtro
+                            )
+                            st.rerun()
+                        elif isinstance(resultado, int) and resultado == 0:
+                            st.error("Despesa não encontrada.")
+                        else:
+                            st.error(f"Erro ao excluir: {resultado}")
+
+
+    with tab_repasses:
+        st.markdown("### Registrar repasse")
+
+        profissionais = listar_profissionais(True)
+        if not profissionais:
+            st.info("Nenhum profissional ativo encontrado.")
+        else:
+            op_prof = [f"{p[0]} - {p[1]} (R$ {float(p[3] or 0):.2f})" for p in profissionais]
+            escolha_prof = st.selectbox("Profissional", op_prof, key="rep_prof")
+            prof_id = int(escolha_prof.split(" - ")[0])
+            prof_dict = {p[0]: p for p in profissionais}
+            prof_sel = prof_dict.get(prof_id)
+
+            if "rep_evolucoes" not in st.session_state:
+                st.session_state.rep_evolucoes = []
+            if "rep_busca_feita" not in st.session_state:
+                st.session_state.rep_busca_feita = False
+            if "rep_filtro" not in st.session_state:
+                st.session_state.rep_filtro = ""
+
+            with st.form("rep_busca_form"):
+                filtro_evo = st.text_input(
+                    "Buscar paciente (nome ou CPF)",
+                    value=st.session_state.rep_filtro,
+                    key="rep_busca_evo"
+                )
+                buscar_rep = st.form_submit_button("Buscar atendimentos")
+
+            if buscar_rep:
+                st.session_state.rep_filtro = filtro_evo
+                st.session_state.rep_evolucoes = listar_evolucoes_financeiro(
+                    filtro_evo,
+                    data_inicio,
+                    data_fim
+                )
+                st.session_state.rep_busca_feita = True
+
+            evolucoes = st.session_state.rep_evolucoes
+            if not evolucoes:
+                if st.session_state.rep_busca_feita:
+                    st.info("Nenhum atendimento encontrado no período.")
+                else:
+                    st.info("Faça uma busca para listar atendimentos.")
+            else:
+                op_evo = [
+                    f"{e[0]} - {e[2]} - {e[4].strftime('%d/%m/%Y')} - {e[5]} - R$ {e[6]:.2f}"
+                    for e in evolucoes
+                ]
+                escolha_evo = st.selectbox("Atendimento", op_evo, key="rep_atendimento")
+                atendimento_id = int(escolha_evo.split(" - ")[0])
+                evo_dict = {e[0]: e for e in evolucoes}
+                evo = evo_dict.get(atendimento_id)
+
+                valor_sugerido = float(prof_sel[3]) if prof_sel else 0.0
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    data_repasse = st.date_input(
+                        "Data do repasse",
+                        value=date.today(),
+                        key="rep_data"
+                    )
+                with col2:
+                    valor_repasse = st.number_input(
+                        "Valor",
+                        min_value=0.0,
+                        value=valor_sugerido,
+                        step=1.0,
+                        format="%.2f",
+                        key="rep_valor"
+                    )
+
+                status_repasse = st.selectbox(
+                    "Status",
+                    STATUS_REPASSE_OPCOES,
+                    key="rep_status"
+                )
+
+                if st.button("Salvar repasse", key="rep_salvar"):
+                    resultado = inserir_repasse_profissional(
+                        prof_id,
+                        atendimento_id,
+                        valor_repasse,
+                        data_repasse,
+                        status_repasse
+                    )
+
+                    if resultado is True:
+                        st.success("Repasse registrado com sucesso!")
+                    else:
+                        st.error(f"Erro ao salvar: {resultado}")
+
+        st.markdown("---")
+        st.markdown("### Repasses")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            data_inicio_r = st.date_input(
+                "Data inicial",
+                value=data_inicio,
+                key="rep_inicio"
+            )
+        with col2:
+            data_fim_r = st.date_input(
+                "Data final",
+                value=data_fim,
+                key="rep_fim"
+            )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            status_rep_filtro = st.selectbox(
+                "Status",
+                ["TODOS"] + STATUS_REPASSE_OPCOES,
+                key="rep_status_filtro"
+            )
+        with col2:
+            prof_filtro = st.selectbox(
+                "Profissional",
+                ["TODOS"] + [f"{p[0]} - {p[1]}" for p in profissionais],
+                key="rep_prof_filtro"
+            )
+
+        prof_id_filtro = 0
+        if prof_filtro != "TODOS":
+            prof_id_filtro = int(prof_filtro.split(" - ")[0])
+
+        if st.button("Buscar repasses", key="rep_buscar"):
+            dados = listar_repasses(data_inicio_r, data_fim_r, status_rep_filtro, prof_id_filtro)
+
+            if not dados:
+                st.info("Nenhum repasse encontrado.")
+            else:
+                import pandas as pd
+
+                df = pd.DataFrame(
+                    dados,
+                    columns=[
+                        "ID", "Profissional", "Paciente", "Data atendimento", "Data repasse", "Valor", "Status"
+                    ]
+                )
+                st.dataframe(df, use_container_width=True)
 
 def render_notas_fiscais():
     st.subheader("Notas Fiscais")

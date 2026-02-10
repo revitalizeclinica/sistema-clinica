@@ -10,6 +10,9 @@ from screens import (
     render_relatorio_contador,
     render_atualizar_precos,
     render_relatorio_geral,
+    render_financeiro,
+    render_financeiro_graficos,
+    render_cadastrar_profissional,
     render_notas_fiscais
 )
 
@@ -20,12 +23,16 @@ if "main_menu" not in st.session_state:
     st.session_state.main_menu = "Início"
 if "admin_menu" not in st.session_state:
     st.session_state.admin_menu = "Selecione..."
+if "financeiro_menu" not in st.session_state:
+    st.session_state.financeiro_menu = "Selecione..."
 if "nav_to" not in st.session_state:
     st.session_state.nav_to = None
 if "admin_authed" not in st.session_state:
     st.session_state.admin_authed = False
 if "admin_reset" not in st.session_state:
     st.session_state.admin_reset = False
+if "financeiro_reset" not in st.session_state:
+    st.session_state.financeiro_reset = False
 if "admin_pwd_reset" not in st.session_state:
     st.session_state.admin_pwd_reset = False
 
@@ -33,10 +40,14 @@ if "admin_pwd_reset" not in st.session_state:
 if st.session_state.nav_to == "Início":
     st.session_state.main_menu = "Início"
     st.session_state.admin_menu = "Selecione..."
+    st.session_state.financeiro_menu = "Selecione..."
     st.session_state.nav_to = None
 if st.session_state.admin_reset:
     st.session_state.admin_menu = "Selecione..."
     st.session_state.admin_reset = False
+if st.session_state.financeiro_reset:
+    st.session_state.financeiro_menu = "Selecione..."
+    st.session_state.financeiro_reset = False
 if st.session_state.admin_pwd_reset:
     st.session_state.admin_pwd = ""
     st.session_state.admin_pwd_reset = False
@@ -44,6 +55,15 @@ if st.session_state.admin_pwd_reset:
 
 def on_main_menu_change():
     # Ao escolher uma opção do menu principal, sai do menu administrativo
+    st.session_state.admin_menu = "Selecione..."
+    st.session_state.financeiro_menu = "Selecione..."
+
+
+def on_admin_menu_change():
+    st.session_state.financeiro_menu = "Selecione..."
+
+
+def on_financeiro_menu_change():
     st.session_state.admin_menu = "Selecione..."
 
 
@@ -93,15 +113,40 @@ else:
             "Relatório Geral",
             "Notas Fiscais"
         ],
-        key="admin_menu"
+        key="admin_menu",
+        on_change=on_admin_menu_change
     )
 
     if st.sidebar.button("Sair", key="admin_logout"):
         st.session_state.admin_authed = False
         st.session_state.admin_reset = True
+        st.session_state.financeiro_reset = True
         st.rerun()
 
-menu = admin_menu if admin_menu != "Selecione..." else main_menu
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("Financeiro")
+
+if not st.session_state.admin_authed:
+    financeiro_menu = st.sidebar.selectbox(
+        "Financeiro",
+        ["Selecione..."],
+        key="financeiro_menu",
+        disabled=True
+    )
+else:
+    financeiro_menu = st.sidebar.selectbox(
+        "Financeiro",
+        ["Selecione...", "Financeiro", "Gráficos Financeiros", "Cadastrar Profissional"],
+        key="financeiro_menu",
+        on_change=on_financeiro_menu_change
+    )
+
+menu = (
+    financeiro_menu if financeiro_menu != "Selecione..." else
+    admin_menu if admin_menu != "Selecione..." else
+    main_menu
+)
 
 # Controle de mensagens após rerun
 if "mensagem_sucesso" not in st.session_state:
@@ -123,6 +168,9 @@ MENU_HANDLERS = {
     "Relatório para Contador": render_relatorio_contador,
     "Atualizar Preços": render_atualizar_precos,
     "Relatório Geral": render_relatorio_geral,
+    "Financeiro": render_financeiro,
+    "Gráficos Financeiros": render_financeiro_graficos,
+    "Cadastrar Profissional": render_cadastrar_profissional,
     "Notas Fiscais": render_notas_fiscais
 }
 
