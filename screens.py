@@ -53,7 +53,7 @@ def _safe_filename(value):
 
 def render_inicio():
     st.markdown(
-        "<h1 style='text-align:center; margin-bottom: 0;'>Clínica Revitalize - DEV</h1>",
+        "<h1 style='text-align:center; margin-bottom: 0;'>Clínica Revitalize</h1>",
         unsafe_allow_html=True
     )
     st.markdown(
