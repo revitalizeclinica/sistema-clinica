@@ -13,6 +13,7 @@ from screens import (
     render_financeiro,
     render_financeiro_graficos,
     render_cadastrar_profissional,
+    render_relatorio_profissional,
     render_notas_fiscais
 )
 
@@ -137,7 +138,7 @@ if not st.session_state.admin_authed:
 else:
     financeiro_menu = st.sidebar.selectbox(
         "Financeiro",
-        ["Selecione...", "Financeiro", "Gráficos Financeiros", "Cadastrar Profissional"],
+        ["Selecione...", "Financeiro", "Gráficos Financeiros", "Cadastrar Profissional", "Relatório por Profissional"],
         key="financeiro_menu",
         on_change=on_financeiro_menu_change
     )
@@ -171,6 +172,7 @@ MENU_HANDLERS = {
     "Financeiro": render_financeiro,
     "Gráficos Financeiros": render_financeiro_graficos,
     "Cadastrar Profissional": render_cadastrar_profissional,
+    "Relatório por Profissional": render_relatorio_profissional,
     "Notas Fiscais": render_notas_fiscais
 }
 

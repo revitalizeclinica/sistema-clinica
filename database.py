@@ -1156,6 +1156,54 @@ def inserir_profissional(nome, cpf, crefito, telefone, endereco, tipo_contrato, 
         return str(e)
 
 
+
+
+def atualizar_profissional(profissional_id, nome, cpf, crefito, telefone, endereco,
+                           tipo_contrato, valor_repasse_fixo, ativo):
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        UPDATE profissional
+        SET
+            nome = %s,
+            cpf = %s,
+            crefito = %s,
+            telefone = %s,
+            endereco = %s,
+            tipo_contrato = %s,
+            valor_repasse_fixo = %s,
+            ativo = %s
+        WHERE id = %s
+        '''
+
+        cur.execute(sql, (
+            nome,
+            cpf,
+            crefito,
+            telefone,
+            endereco,
+            tipo_contrato,
+            valor_repasse_fixo,
+            ativo,
+            profissional_id
+        ))
+        afetados = cur.rowcount
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return afetados
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+
 def listar_profissionais(ativos_only):
     conn = get_connection()
     if conn is None:
@@ -1534,6 +1582,42 @@ def financeiro_repasse_mensal(data_inicio, data_fim):
         '''
 
         cur.execute(sql, (data_inicio, data_fim))
+        dados = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return dados
+
+    except Exception:
+        conn.close()
+        return []
+
+
+def relatorio_profissional_consultas(profissional_nome, data_inicio, data_fim):
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = '''
+        SELECT
+            e.id,
+            e.data_registro::date,
+            p.nome AS paciente,
+            t.descricao AS tipo_atendimento,
+            COALESCE(e.valor_cobrado, t.valor) AS valor_consulta
+        FROM evolucao e
+        JOIN paciente p ON e.paciente_id = p.id
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        WHERE e.profissional = %s
+          AND e.data_registro::date BETWEEN %s AND %s
+        ORDER BY e.data_registro::date ASC
+        '''
+
+        cur.execute(sql, (profissional_nome, data_inicio, data_fim))
         dados = cur.fetchall()
 
         cur.close()

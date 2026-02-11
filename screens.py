@@ -34,10 +34,12 @@ from database import (
     listar_despesas,
     deletar_despesa,
     inserir_profissional,
+    atualizar_profissional,
     listar_profissionais,
     inserir_repasse_profissional,
     listar_repasses,
     resumo_financeiro,
+    relatorio_profissional_consultas,
     financeiro_receita_mensal,
     financeiro_despesa_mensal,
     financeiro_pagamentos_por_status,
@@ -45,7 +47,7 @@ from database import (
     financeiro_receita_por_tipo_atendimento,
     financeiro_repasse_mensal
 )
-from pdf_utils import gerar_pdf_relatorio_paciente
+from pdf_utils import gerar_pdf_relatorio_paciente, gerar_pdf_relatorio_profissional
 from utils import mask_cpf, mask_email, mask_nome, mask_phone, only_digits
 
 
@@ -218,13 +220,34 @@ def render_cadastrar_paciente():
 def render_listar_pacientes():
     st.subheader("Pacientes Cadastrados")
 
-    filtro = st.text_input("Buscar por nome ou CPF")
-    st.caption("Digite parte do nome ou CPF para filtrar")
+    if "listar_pacientes_filtro" not in st.session_state:
+        st.session_state.listar_pacientes_filtro = ""
+    if "listar_pacientes_dados" not in st.session_state:
+        st.session_state.listar_pacientes_dados = []
+    if "listar_pacientes_busca_feita" not in st.session_state:
+        st.session_state.listar_pacientes_busca_feita = False
 
-    pacientes = listar_pacientes(filtro)
+    with st.form("listar_pacientes_form"):
+        filtro = st.text_input(
+            "Buscar por nome ou CPF",
+            value=st.session_state.listar_pacientes_filtro,
+            key="listar_pacientes_filtro_input"
+        )
+        st.caption("Digite parte do nome ou CPF para filtrar")
+        buscar = st.form_submit_button("Buscar")
+
+    if buscar:
+        st.session_state.listar_pacientes_filtro = filtro
+        st.session_state.listar_pacientes_dados = listar_pacientes(filtro)
+        st.session_state.listar_pacientes_busca_feita = True
+
+    pacientes = st.session_state.listar_pacientes_dados
 
     if not pacientes:
-        st.info("Nenhum paciente encontrado.")
+        if st.session_state.listar_pacientes_busca_feita:
+            st.info("Nenhum paciente encontrado.")
+        else:
+            st.info("Faça uma busca para listar pacientes.")
     else:
         import pandas as pd
 
@@ -356,11 +379,34 @@ def render_historico_paciente():
     if "historico_paciente_id" not in st.session_state:
         st.session_state.historico_paciente_id = None
 
-    filtro = st.text_input("Buscar paciente por nome ou CPF")
-    pacientes = listar_pacientes(filtro)
+    if "historico_pacientes" not in st.session_state:
+        st.session_state.historico_pacientes = []
+    if "historico_filtro" not in st.session_state:
+        st.session_state.historico_filtro = ""
+    if "historico_busca_feita" not in st.session_state:
+        st.session_state.historico_busca_feita = False
+
+    with st.form("historico_busca_form"):
+        filtro = st.text_input(
+            "Buscar paciente por nome ou CPF",
+            value=st.session_state.historico_filtro,
+            key="historico_filtro_input"
+        )
+        buscar = st.form_submit_button("Buscar")
+
+    if buscar:
+        st.session_state.historico_filtro = filtro
+        st.session_state.historico_pacientes = listar_pacientes(filtro)
+        st.session_state.historico_busca_feita = True
+
+    pacientes = st.session_state.historico_pacientes
 
     if not pacientes:
-        st.info("Nenhum paciente encontrado.")
+        if st.session_state.historico_busca_feita:
+            st.info("Nenhum paciente encontrado.")
+        else:
+            st.info("Faça uma busca para selecionar o paciente.")
+        return
     else:
         opcoes = [f"{p[0]} - {p[1]} (CPF: {mask_cpf(p[2])})" for p in pacientes]
         escolha = st.selectbox("Selecione o paciente", opcoes)
@@ -420,11 +466,34 @@ def render_avaliacao_inicial():
     if "avaliacao_selecionado_id" not in st.session_state:
         st.session_state.avaliacao_selecionado_id = None
 
-    filtro = st.text_input("Buscar paciente")
-    pacientes = listar_pacientes(filtro)
+    if "avaliacao_pacientes" not in st.session_state:
+        st.session_state.avaliacao_pacientes = []
+    if "avaliacao_filtro" not in st.session_state:
+        st.session_state.avaliacao_filtro = ""
+    if "avaliacao_busca_feita" not in st.session_state:
+        st.session_state.avaliacao_busca_feita = False
+
+    with st.form("avaliacao_busca_form"):
+        filtro = st.text_input(
+            "Buscar paciente",
+            value=st.session_state.avaliacao_filtro,
+            key="avaliacao_filtro_input"
+        )
+        buscar = st.form_submit_button("Buscar")
+
+    if buscar:
+        st.session_state.avaliacao_filtro = filtro
+        st.session_state.avaliacao_pacientes = listar_pacientes(filtro)
+        st.session_state.avaliacao_busca_feita = True
+
+    pacientes = st.session_state.avaliacao_pacientes
 
     if not pacientes:
-        st.info("Nenhum paciente encontrado.")
+        if st.session_state.avaliacao_busca_feita:
+            st.info("Nenhum paciente encontrado.")
+        else:
+            st.info("Faça uma busca para selecionar o paciente.")
+        return
     else:
         opcoes = [f"{p[0]} - {p[1]}" for p in pacientes]
         escolha = st.selectbox("Selecione o paciente", opcoes)
@@ -539,11 +608,34 @@ def render_relatorio_paciente():
 
     _botao_voltar_inicio("voltar_rel_paciente")
 
-    filtro = st.text_input("Buscar paciente por nome ou CPF")
-    pacientes = listar_pacientes(filtro)
+    if "relatorio_pacientes" not in st.session_state:
+        st.session_state.relatorio_pacientes = []
+    if "relatorio_filtro" not in st.session_state:
+        st.session_state.relatorio_filtro = ""
+    if "relatorio_busca_feita" not in st.session_state:
+        st.session_state.relatorio_busca_feita = False
+
+    with st.form("relatorio_busca_form"):
+        filtro = st.text_input(
+            "Buscar paciente por nome ou CPF",
+            value=st.session_state.relatorio_filtro,
+            key="relatorio_filtro_input"
+        )
+        buscar = st.form_submit_button("Buscar")
+
+    if buscar:
+        st.session_state.relatorio_filtro = filtro
+        st.session_state.relatorio_pacientes = listar_pacientes(filtro)
+        st.session_state.relatorio_busca_feita = True
+
+    pacientes = st.session_state.relatorio_pacientes
 
     if not pacientes:
-        st.info("Nenhum paciente encontrado.")
+        if st.session_state.relatorio_busca_feita:
+            st.info("Nenhum paciente encontrado.")
+        else:
+            st.info("Faça uma busca para selecionar o paciente.")
+        return
     else:
         pacientes_por_id = {p[0]: p[1] for p in pacientes}
         opcoes = ["Todos os pacientes do período"] + [
@@ -851,6 +943,75 @@ def render_cadastrar_profissional():
                 st.error(f"Erro ao salvar: {resultado}")
 
     st.markdown("---")
+    st.markdown("---")
+    st.markdown("### Editar/Desativar profissional")
+
+    profissionais_todos = listar_profissionais(False)
+    if not profissionais_todos:
+        st.info("Nenhum profissional encontrado.")
+    else:
+        opcoes_edit = [f"{p[0]} - {p[1]}" for p in profissionais_todos]
+        escolha_edit = st.selectbox("Selecione o profissional", opcoes_edit, key="prof_edit_select")
+        prof_id = int(escolha_edit.split(" - ")[0])
+        prof_map = {p[0]: p for p in profissionais_todos}
+        prof = prof_map.get(prof_id)
+
+        if prof:
+            with st.form(f"form_editar_prof_{prof_id}"):
+                nome_edit = st.text_input("Nome", value=prof[1] or "", key=f"edit_nome_{prof_id}")
+                cpf_edit = st.text_input("CPF", value=prof[5] or "", key=f"edit_cpf_{prof_id}")
+                crefito_edit = st.text_input("CREFITO", value=prof[6] or "", key=f"edit_crefito_{prof_id}")
+                telefone_edit = st.text_input("Telefone", value=prof[7] or "", key=f"edit_tel_{prof_id}")
+                endereco_edit = st.text_input("Endereço", value=prof[8] or "", key=f"edit_end_{prof_id}")
+                contrato_edit = st.text_input("Tipo de contrato", value=prof[2] or "", key=f"edit_contrato_{prof_id}")
+                valor_fixo_edit = st.number_input(
+                    "Valor fixo de repasse (R$)",
+                    min_value=0.0,
+                    max_value=10000.0,
+                    value=float(prof[3] or 0),
+                    step=1.0,
+                    format="%.2f",
+                    key=f"edit_valor_{prof_id}"
+                )
+                ativo_edit = st.checkbox("Ativo", value=bool(prof[4]), key=f"edit_ativo_{prof_id}")
+
+                salvar_edit = st.form_submit_button("Salvar alterações")
+
+            if salvar_edit:
+                cpf_digits = only_digits(cpf_edit)
+                tel_digits = only_digits(telefone_edit)
+
+                if not nome_edit.strip():
+                    st.error("Nome é obrigatório.")
+                elif not cpf_digits:
+                    st.error("CPF é obrigatório.")
+                elif not crefito_edit.strip():
+                    st.error("CREFITO é obrigatório.")
+                elif not tel_digits:
+                    st.error("Telefone é obrigatório.")
+                elif valor_fixo_edit <= 0:
+                    st.error("Informe um valor fixo de repasse.")
+                else:
+                    resultado = atualizar_profissional(
+                        prof_id,
+                        nome_edit.strip(),
+                        cpf_digits,
+                        crefito_edit.strip(),
+                        tel_digits,
+                        endereco_edit.strip(),
+                        contrato_edit.strip(),
+                        valor_fixo_edit,
+                        ativo_edit
+                    )
+
+                    if resultado == 1:
+                        st.success("Profissional atualizado com sucesso!")
+                        st.rerun()
+                    elif isinstance(resultado, int) and resultado == 0:
+                        st.error("Nenhuma alteração foi aplicada.")
+                    else:
+                        st.error(f"Erro ao atualizar: {resultado}")
+
     st.markdown("### Profissionais")
 
     ativos_only = st.checkbox("Mostrar apenas ativos", value=True, key="prof_ativos_only")
@@ -1154,6 +1315,93 @@ def render_financeiro_graficos():
             )
         )
         st.altair_chart(chart_tipo + labels_tipo, use_container_width=True)
+
+
+def render_relatorio_profissional():
+    st.subheader("Relatório por Profissional")
+
+    _botao_voltar_inicio("voltar_rel_prof")
+
+    profissionais = listar_profissionais(False)
+    if not profissionais:
+        st.info("Nenhum profissional encontrado.")
+        return
+
+    opcoes = [f"{p[0]} - {p[1]}" for p in profissionais]
+    escolha = st.selectbox("Profissional", opcoes, key="rel_prof_select")
+    prof_id = int(escolha.split(" - ")[0])
+    prof_map = {p[0]: p for p in profissionais}
+    prof = prof_map.get(prof_id)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        data_inicio = st.date_input("Data inicial", value=date.today().replace(day=1), key="rel_prof_ini")
+    with col2:
+        data_fim = st.date_input("Data final", value=date.today(), key="rel_prof_fim")
+
+    if st.button("Gerar relatório", key="rel_prof_btn"):
+        nome_prof = prof[1]
+        valor_fixo = float(prof[3] or 0)
+        dados = relatorio_profissional_consultas(nome_prof, data_inicio, data_fim)
+
+        if not dados:
+            st.info("Nenhuma consulta encontrada no período.")
+            return
+
+        import pandas as pd
+
+        linhas = []
+        total_consultas = 0
+        total_consulta_valor = 0.0
+        total_repasse = 0.0
+
+        for d in dados:
+            total_consultas += 1
+            total_consulta_valor += float(d[4] or 0)
+            total_repasse += valor_fixo
+            linhas.append([
+                d[0],
+                d[1],
+                d[2],
+                d[3],
+                float(d[4] or 0),
+                valor_fixo
+            ])
+
+        st.markdown("### Resumo")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Consultas", total_consultas)
+        with col2:
+            st.metric("Total consultas (R$)", f"R$ {total_consulta_valor:.2f}")
+        with col3:
+            st.metric("Total repasse (R$)", f"R$ {total_repasse:.2f}")
+
+        df = pd.DataFrame(
+            linhas,
+            columns=[
+                "ID",
+                "Data",
+                "Paciente",
+                "Tipo atendimento",
+                "Valor consulta (R$)",
+                "Repasse fixo (R$)"
+            ]
+        )
+        st.dataframe(df, use_container_width=True)
+
+        periodo_txt = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
+        dados_pdf = [(d[1], d[2], d[3], float(d[4] or 0), valor_fixo) for d in dados]
+        pdf_buffer = gerar_pdf_relatorio_profissional(nome_prof, periodo_txt, dados_pdf)
+        nome_arquivo = f"relatorio_{_safe_filename(nome_prof)}_{data_inicio.strftime('%Y%m')}.pdf"
+
+        st.download_button(
+            "Baixar relatório (PDF)",
+            data=pdf_buffer,
+            file_name=nome_arquivo,
+            mime="application/pdf"
+        )
+
 
 
 
