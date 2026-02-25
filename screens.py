@@ -13,8 +13,11 @@ from database import (
     inserir_evolucao,
     listar_tipos_atendimento_com_valor,
     listar_evolucoes_por_paciente,
-    inserir_avaliacao,
-    buscar_avaliacao,
+    inserir_avaliacao_clinica,
+    inserir_avaliacao_inicial,
+    listar_avaliacoes_clinicas,
+    buscar_avaliacao_clinica,
+    buscar_avaliacao_inicial,
     relatorio_paciente_agrupado,
     relatorio_paciente_detalhado,
     relatorio_contador,
@@ -271,7 +274,7 @@ def render_listar_pacientes():
 
 
 def render_nova_evolucao():
-    st.subheader("Registrar Nova Evolução")
+    st.subheader("Avaliação / Evolução diária")
 
     if "nova_evo_pacientes" not in st.session_state:
         st.session_state.nova_evo_pacientes = []
@@ -314,9 +317,11 @@ def render_nova_evolucao():
             st.error("Cadastre um profissional ativo no Financeiro para continuar.")
             st.stop()
 
-        op_prof = [f"{p[0]} - {p[1]}" for p in profissionais]
-        escolha_prof = st.selectbox("Profissional responsável", op_prof)
-        profissional = escolha_prof.split(" - ", 1)[1]
+        op_prof = ["Selecione o profissional"] + [f"{p[0]} - {p[1]}" for p in profissionais]
+        escolha_prof = st.selectbox("Profissional responsável", op_prof, index=0)
+        profissional = None
+        if escolha_prof != op_prof[0]:
+            profissional = escolha_prof.split(" - ", 1)[1]
 
         tipos = listar_tipos_atendimento_com_valor()
 
@@ -336,17 +341,15 @@ def render_nova_evolucao():
             tipo_dict = {t[0]: t for t in tipos}
             valor_cobrado = float(tipo_dict[tipo_id][3])
 
-        resumo = st.text_area("Resumo da evolução")
-        condutas = st.text_area("Condutas realizadas")
-        resposta = st.text_area("Resposta do paciente")
-        objetivos = st.text_area("Objetivos para o próximo período")
-        observacoes = st.text_area("Observações adicionais")
+        queixas = st.text_area("Queixas")
+        condutas = st.text_area("Condutas")
+        resposta = st.text_area("Respostas")
 
-        enviado = st.form_submit_button("Salvar evolução")
+        enviado = st.form_submit_button("Salvar atendimento")
 
         if enviado:
             if not profissional:
-                st.error("Informe o nome do profissional.")
+                st.error("Selecione o profissional.")
             elif tipo_id is None:
                 st.error("Selecione o tipo de atendimento.")
             elif valor_cobrado is None:
@@ -357,16 +360,16 @@ def render_nova_evolucao():
                     tipo_id,
                     data_registro,
                     profissional,
-                    resumo,
+                    queixas,
                     condutas,
                     resposta,
-                    objetivos,
-                    observacoes,
+                    "",
+                    "",
                     valor_cobrado
                 )
 
                 if resultado is True:
-                    st.success("Evolução registrada com sucesso!")
+                    st.success("Atendimento registrado com sucesso!")
                 else:
                     st.error(f"Erro ao salvar: {resultado}")
 
@@ -440,7 +443,7 @@ def render_historico_paciente():
 
         if st.session_state.evolucao_aberta:
             st.markdown("---")
-            st.subheader("Detalhes da Evolução")
+            st.subheader("Detalhes do Atendimento")
 
             detalhe = st.session_state.evolucao_aberta
 
@@ -451,45 +454,187 @@ def render_historico_paciente():
                 st.write(f"### {titulo}")
                 st.write(valor if valor else "Não informado")
 
-            exibir_titulo_valor("Resumo da evolução", detalhe[3])
-            exibir_titulo_valor("Condutas realizadas", detalhe[4])
-            exibir_titulo_valor("Resposta do paciente", detalhe[5])
+            exibir_titulo_valor("Queixas", detalhe[3])
+            exibir_titulo_valor("Condutas", detalhe[4])
+            exibir_titulo_valor("Respostas", detalhe[5])
             exibir_titulo_valor("Objetivos", detalhe[6])
             exibir_titulo_valor("Observações", detalhe[7])
 
 
-def render_avaliacao_inicial():
-    st.subheader("Avaliação Clínica Inicial")
+def render_avaliacao_clinica():
+    st.subheader("Avaliação Clínica")
+    st.caption("Nesta fase o sistema apenas armazena os valores digitados, sem cálculo automático.")
 
-    if "avaliacao_form_ativo" not in st.session_state:
-        st.session_state.avaliacao_form_ativo = False
-    if "avaliacao_selecionado_id" not in st.session_state:
-        st.session_state.avaliacao_selecionado_id = None
+    if "avaliacao_clinica_form_ativo" not in st.session_state:
+        st.session_state.avaliacao_clinica_form_ativo = False
+    if "avaliacao_clinica_selecionado_id" not in st.session_state:
+        st.session_state.avaliacao_clinica_selecionado_id = None
+    if "avaliacao_clinica_aberta_id" not in st.session_state:
+        st.session_state.avaliacao_clinica_aberta_id = None
 
-    if "avaliacao_pacientes" not in st.session_state:
-        st.session_state.avaliacao_pacientes = []
-    if "avaliacao_filtro" not in st.session_state:
-        st.session_state.avaliacao_filtro = ""
-    if "avaliacao_busca_feita" not in st.session_state:
-        st.session_state.avaliacao_busca_feita = False
+    if "avaliacao_clinica_pacientes" not in st.session_state:
+        st.session_state.avaliacao_clinica_pacientes = []
+    if "avaliacao_clinica_filtro" not in st.session_state:
+        st.session_state.avaliacao_clinica_filtro = ""
+    if "avaliacao_clinica_busca_feita" not in st.session_state:
+        st.session_state.avaliacao_clinica_busca_feita = False
 
-    with st.form("avaliacao_busca_form"):
+    with st.form("avaliacao_clinica_busca_form"):
         filtro = st.text_input(
             "Buscar paciente",
-            value=st.session_state.avaliacao_filtro,
-            key="avaliacao_filtro_input"
+            value=st.session_state.avaliacao_clinica_filtro,
+            key="avaliacao_clinica_filtro_input"
         )
         buscar = st.form_submit_button("Buscar")
 
     if buscar:
-        st.session_state.avaliacao_filtro = filtro
-        st.session_state.avaliacao_pacientes = listar_pacientes(filtro)
-        st.session_state.avaliacao_busca_feita = True
+        st.session_state.avaliacao_clinica_filtro = filtro
+        st.session_state.avaliacao_clinica_pacientes = listar_pacientes(filtro)
+        st.session_state.avaliacao_clinica_busca_feita = True
 
-    pacientes = st.session_state.avaliacao_pacientes
+    pacientes = st.session_state.avaliacao_clinica_pacientes
 
     if not pacientes:
-        if st.session_state.avaliacao_busca_feita:
+        if st.session_state.avaliacao_clinica_busca_feita:
+            st.info("Nenhum paciente encontrado.")
+        else:
+            st.info("Faça uma busca para selecionar o paciente.")
+        return
+
+    opcoes = [f"{p[0]} - {p[1]}" for p in pacientes]
+    escolha = st.selectbox("Selecione o paciente", opcoes)
+    paciente_id = int(escolha.split(" - ")[0])
+
+    if st.session_state.avaliacao_clinica_selecionado_id != paciente_id:
+        st.session_state.avaliacao_clinica_form_ativo = False
+        st.session_state.avaliacao_clinica_aberta_id = None
+        st.session_state.avaliacao_clinica_selecionado_id = paciente_id
+
+    avaliacoes = listar_avaliacoes_clinicas(paciente_id)
+
+    if st.button("Nova avaliação clínica", key=f"nova_avaliacao_{paciente_id}"):
+        st.session_state.avaliacao_clinica_form_ativo = True
+        st.session_state.avaliacao_clinica_aberta_id = None
+        st.rerun()
+
+    if avaliacoes:
+        st.markdown("---")
+        st.subheader("Avaliações registradas")
+
+        for avaliacao in avaliacoes:
+            col1, col2, col3 = st.columns([2, 3, 1])
+            with col1:
+                st.write(f"**Data:** {avaliacao[1]}")
+            with col2:
+                st.write(f"**Profissional:** {avaliacao[2] if avaliacao[2] else 'Não informado'}")
+            with col3:
+                if st.button("Abrir", key=f"abrir_avaliacao_{avaliacao[0]}"):
+                    st.session_state.avaliacao_clinica_aberta_id = avaliacao[0]
+
+        if st.session_state.avaliacao_clinica_aberta_id:
+            detalhe = buscar_avaliacao_clinica(st.session_state.avaliacao_clinica_aberta_id)
+            if detalhe:
+                st.markdown("---")
+                st.subheader("Detalhes da Avaliação Clínica")
+
+                st.write(f"**Data da avaliação:** {detalhe[2]}")
+                st.write(f"**Profissional:** {detalhe[3] if detalhe[3] else 'Não informado'}")
+
+                def mostrar_campo(titulo, valor):
+                    st.write(f"### {titulo}")
+                    st.write(valor if valor not in (None, "") else "Não informado")
+
+                mostrar_campo("Queixa", detalhe[4])
+                mostrar_campo("Diagnóstico", detalhe[5])
+                mostrar_campo("Histórico clínico", detalhe[6])
+                mostrar_campo("Histórico de vida", detalhe[7])
+                mostrar_campo("Medicamentos em uso", detalhe[8])
+    else:
+        st.info("Este paciente ainda não possui avaliações clínicas.")
+
+    if st.session_state.avaliacao_clinica_form_ativo:
+        st.markdown("---")
+        st.subheader("Nova Avaliação Clínica")
+
+        with st.form("form_avaliacao_clinica"):
+            col1, col2 = st.columns(2)
+            with col1:
+                data_avaliacao = st.date_input("Data da avaliação", value=date.today())
+            with col2:
+                profissionais = listar_profissionais(True)
+                if not profissionais:
+                    st.error("Cadastre um profissional ativo no Financeiro para continuar.")
+                    st.stop()
+
+                op_prof = ["Selecione..."] + [f"{p[0]} - {p[1]}" for p in profissionais]
+                escolha_prof = st.selectbox("Profissional", op_prof)
+                profissional = None if escolha_prof == "Selecione..." else escolha_prof.split(" - ", 1)[1]
+
+            queixa = st.text_area("Queixa")
+            diagnostico = st.text_area("Diagnóstico")
+            historico_clinico = st.text_area("Histórico clínico")
+            historico_vida = st.text_area("Histórico de vida")
+            medicamentos_uso = st.text_area("Medicamentos em uso")
+
+            enviado = st.form_submit_button("Salvar avaliação clínica")
+
+        if enviado:
+            if not profissional:
+                st.error("Selecione o profissional.")
+                return
+
+            dados = {
+                "data": data_avaliacao,
+                "profissional": profissional,
+                "queixa": queixa,
+                "diagnostico": diagnostico,
+                "historico_clinico": historico_clinico,
+                "historico_vida": historico_vida,
+                "medicamentos_uso": medicamentos_uso
+            }
+
+            resultado = inserir_avaliacao_clinica(paciente_id, dados)
+
+            if resultado is True:
+                st.success("Avaliação clínica cadastrada com sucesso!")
+                st.session_state.avaliacao_clinica_form_ativo = False
+                st.rerun()
+            else:
+                st.error(f"Erro ao salvar: {resultado}")
+
+
+def render_avaliacao_inicial():
+    st.subheader("Avaliação Funcional")
+
+    if "avaliacao_inicial_form_ativo" not in st.session_state:
+        st.session_state.avaliacao_inicial_form_ativo = False
+    if "avaliacao_inicial_selecionado_id" not in st.session_state:
+        st.session_state.avaliacao_inicial_selecionado_id = None
+
+    if "avaliacao_inicial_pacientes" not in st.session_state:
+        st.session_state.avaliacao_inicial_pacientes = []
+    if "avaliacao_inicial_filtro" not in st.session_state:
+        st.session_state.avaliacao_inicial_filtro = ""
+    if "avaliacao_inicial_busca_feita" not in st.session_state:
+        st.session_state.avaliacao_inicial_busca_feita = False
+
+    with st.form("avaliacao_inicial_busca_form"):
+        filtro = st.text_input(
+            "Buscar paciente",
+            value=st.session_state.avaliacao_inicial_filtro,
+            key="avaliacao_inicial_filtro_input"
+        )
+        buscar = st.form_submit_button("Buscar")
+
+    if buscar:
+        st.session_state.avaliacao_inicial_filtro = filtro
+        st.session_state.avaliacao_inicial_pacientes = listar_pacientes(filtro)
+        st.session_state.avaliacao_inicial_busca_feita = True
+
+    pacientes = st.session_state.avaliacao_inicial_pacientes
+
+    if not pacientes:
+        if st.session_state.avaliacao_inicial_busca_feita:
             st.info("Nenhum paciente encontrado.")
         else:
             st.info("Faça uma busca para selecionar o paciente.")
@@ -499,17 +644,17 @@ def render_avaliacao_inicial():
         escolha = st.selectbox("Selecione o paciente", opcoes)
         paciente_id = int(escolha.split(" - ")[0])
 
-        if st.session_state.avaliacao_selecionado_id != paciente_id:
-            st.session_state.avaliacao_form_ativo = False
-            st.session_state.avaliacao_selecionado_id = paciente_id
+        if st.session_state.avaliacao_inicial_selecionado_id != paciente_id:
+            st.session_state.avaliacao_inicial_form_ativo = False
+            st.session_state.avaliacao_inicial_selecionado_id = paciente_id
 
-        existente = buscar_avaliacao(paciente_id)
+        existente = buscar_avaliacao_inicial(paciente_id)
 
         if existente:
-            st.success("Este paciente já possui avaliação inicial cadastrada.")
+            st.success("Este paciente já possui avaliação funcional cadastrada.")
 
             st.markdown("---")
-            st.subheader("Detalhes da Avaliação Inicial")
+            st.subheader("Detalhes da Avaliação Funcional")
 
             st.write(f"**Data da avaliação:** {existente[2]}")
             st.write(f"**Profissional:** {existente[3]}")
@@ -518,29 +663,55 @@ def render_avaliacao_inicial():
                 st.write(f"### {titulo}")
                 st.write(valor if valor else "Não informado")
 
-            mostrar_campo("Queixa principal", existente[4])
-            mostrar_campo("Diagnóstico", existente[5])
+            st.write("### Sinais Vitais")
+            mostrar_campo("Pressão arterial sistólica", existente[4])
+            mostrar_campo("Pressão arterial diastólica", existente[5])
+            mostrar_campo("Frequência cardíaca", existente[6])
+            mostrar_campo("SpO2", existente[7])
+            mostrar_campo("Ausculta pulmonar", existente[8])
 
-            mostrar_campo("Histórico", existente[6])
-            mostrar_campo("Medicamentos em uso", existente[7])
+            mostrar_campo("Avaliação da dor (0-10)", existente[9])
 
-            mostrar_campo("Avaliação da dor", existente[8])
-            mostrar_campo("Mobilidade", existente[9])
-            mostrar_campo("Força muscular", existente[10])
-            mostrar_campo("Limitações funcionais", existente[11])
-            mostrar_campo("Marcha", existente[12])
-            mostrar_campo("Equilíbrio", existente[13])
+            st.write("### Mobilidade")
+            mostrar_campo("Grau de dependência", existente[10])
+            mostrar_campo("Descrição", existente[11])
 
-            mostrar_campo("Objetivos do tratamento", existente[14])
-            mostrar_campo("Plano terapêutico", existente[15])
+            mostrar_campo("Atividades básicas e instrumentais do cotidiano", existente[12])
+            mostrar_campo("TUG", existente[13])
+            mostrar_campo("Marcha", existente[14])
+
+            st.write("### Avaliação dos Reflexos")
+            mostrar_campo("Anteriores", existente[15])
+            mostrar_campo("Posteriores", existente[16])
+            mostrar_campo("Descrição", existente[17])
+
+            mostrar_campo("Risco de quedas", existente[18])
+            mostrar_campo("Equilíbrio", existente[19])
+            mostrar_campo("Perimetria de panturrilha", existente[20])
+
+            st.write("### SARC-F")
+            mostrar_campo("Força", existente[21])
+            mostrar_campo("Ajuda para caminhar", existente[22])
+            mostrar_campo("Levantar da cadeira", existente[23])
+            mostrar_campo("Subir escadas", existente[24])
+            mostrar_campo("Quedas", existente[25])
+            mostrar_campo("Panturrilha", existente[26])
+
+            st.write("### Teste de Caminhada 6 Minutos")
+            mostrar_campo("Distância", existente[27])
+            mostrar_campo("Descrição", existente[28])
+
+            mostrar_campo("Chair stand test", existente[29])
+            mostrar_campo("Diagnóstico Cinético Funcional", existente[30])
+            mostrar_campo("Plano terapêutico", existente[31])
         else:
-            st.info("Este paciente ainda não possui avaliação inicial.")
+            st.info("Este paciente ainda não possui avaliação funcional.")
 
-            if st.button("Habilitar preenchimento", key=f"habilitar_avaliacao_{paciente_id}"):
-                st.session_state.avaliacao_form_ativo = True
+            if st.button("Habilitar preenchimento", key=f"habilitar_avaliacao_inicial_{paciente_id}"):
+                st.session_state.avaliacao_inicial_form_ativo = True
                 st.rerun()
 
-            if st.session_state.avaliacao_form_ativo:
+            if st.session_state.avaliacao_inicial_form_ativo:
                 with st.form("form_avaliacao_inicial"):
                     col1, col2 = st.columns(2)
                     with col1:
@@ -551,53 +722,144 @@ def render_avaliacao_inicial():
                             st.error("Cadastre um profissional ativo no Financeiro para continuar.")
                             st.stop()
 
-                        op_prof = [f"{p[0]} - {p[1]}" for p in profissionais]
+                        op_prof = ["Selecione..."] + [f"{p[0]} - {p[1]}" for p in profissionais]
                         escolha_prof = st.selectbox("Profissional", op_prof)
-                        profissional = escolha_prof.split(" - ", 1)[1]
+                        profissional = None if escolha_prof == "Selecione..." else escolha_prof.split(" - ", 1)[1]
 
-                    queixa = st.text_area("Queixa principal")
-                    diagnostico = st.text_area("Diagnóstico")
-                    historico = st.text_area("Histórico")
-                    medicamentos = st.text_area("Medicamentos em uso")
+                    st.write("### Sinais Vitais")
+                    pressao_arterial_sistolica = st.text_input("Pressão arterial sistólica")
+                    pressao_arterial_diastolica = st.text_input("Pressão arterial diastólica")
+                    frequencia_cardiaca = st.text_input("Frequência cardíaca")
+                    spo2 = st.text_input("SpO2")
+                    ausculta_pulmonar = st.text_input("Ausculta pulmonar")
 
-                    dor = st.text_area("Avaliação da dor")
-                    mobilidade = st.text_area("Mobilidade")
-                    forca = st.text_area("Força muscular")
-                    limitacoes = st.text_area("Limitações funcionais")
+                    dor = st.number_input("Avaliação da dor (0-10)", min_value=0, max_value=10, step=1)
+
+                    st.write("### Mobilidade")
+                    mobilidade_grau_opcoes = ["Selecione...", "Nível 1", "Nível 2", "Nível 3", "Nível 4"]
+                    mobilidade_grau = st.selectbox("Grau de dependência", mobilidade_grau_opcoes)
+                    mobilidade_descricao = st.text_area("Descrição da mobilidade")
+
+                    atividades = st.text_area("Atividades básicas e instrumentais do cotidiano")
+                    tug = st.text_input("TUG")
                     marcha = st.text_area("Marcha")
-                    equilibrio = st.text_area("Equilíbrio")
 
-                    objetivos = st.text_area("Objetivos do tratamento")
+                    st.write("### Avaliação dos Reflexos")
+                    reflexos_opcoes = ["Selecione...", "Preservados", "Ausentes", "Insuficientes"]
+                    reflexos_anteriores = st.selectbox("Reflexos anteriores", reflexos_opcoes)
+                    reflexos_posteriores = st.selectbox("Reflexos posteriores", reflexos_opcoes)
+                    reflexos_descricao = st.text_area("Descrição dos reflexos")
+
+                    risco_quedas_opcoes = ["Selecione...", "Baixo", "Moderado", "Alto", "Sem risco"]
+                    risco_quedas = st.selectbox("Risco de quedas", risco_quedas_opcoes)
+                    equilibrio = st.text_area("Equilíbrio")
+                    perimetria_panturrilha = st.text_input("Perimetria de panturrilha")
+
+                    st.write("### SARC-F")
+                    sarc_forca_opcoes = ["Selecione...", "Nenhuma (0)", "Alguma (1)", "Muita ou não consegue (2)"]
+                    sarc_forca = st.selectbox("Força - dificuldade para levantar e carregar 5kg", sarc_forca_opcoes)
+                    sarc_ajuda_opcoes = ["Selecione...", "Nenhuma (0)", "Alguma (1)", "Muita ou não consegue (2)"]
+                    sarc_ajuda = st.selectbox("Ajuda para caminhar - atravessar um cômodo", sarc_ajuda_opcoes)
+                    sarc_levantar_opcoes = ["Selecione...", "Nenhuma (0)", "Alguma (1)", "Muita ou não consegue (2)"]
+                    sarc_levantar = st.selectbox("Levantar da cadeira - cama ou cadeira", sarc_levantar_opcoes)
+                    sarc_escadas_opcoes = ["Selecione...", "Nenhuma (0)", "Alguma (1)", "Muita ou não consegue (2)"]
+                    sarc_escadas = st.selectbox("Subir escadas - 10 degraus", sarc_escadas_opcoes)
+                    sarc_quedas_opcoes = ["Selecione...", "Nenhuma (0)", "1-3 quedas (1)", "4 ou mais quedas (2)"]
+                    sarc_quedas = st.selectbox("Quedas no último ano", sarc_quedas_opcoes)
+                    sarc_panturrilha_opcoes = ["Selecione...", ">33 cm (0)", "<=33 cm (10)"]
+                    sarc_panturrilha = st.selectbox("Panturrilha (considerando sexo)", sarc_panturrilha_opcoes)
+
+                    st.write("### Teste de Caminhada 6 Minutos")
+                    caminhada_6min_distancia = st.text_input("Distância")
+                    caminhada_6min_observacao = st.text_area("Descrição do teste")
+
+                    chair_stand_test = st.text_input("Chair stand test")
+                    diagnostico_cinetico = st.text_area("Diagnóstico Cinético Funcional")
                     plano = st.text_area("Plano terapêutico")
 
                     enviado = st.form_submit_button("Salvar avaliação")
 
                 if enviado:
                     if not profissional:
-                        st.error("Informe o nome do profissional.")
+                        st.error("Selecione o profissional.")
                     else:
+                        erros = []
+
+                        def parse_float(valor, campo):
+                            valor = valor.strip().replace(",", ".")
+                            if not valor:
+                                return None
+                            try:
+                                return float(valor)
+                            except ValueError:
+                                erros.append(f"{campo} deve ser numérico.")
+                                return None
+
+                        def map_sarc_opcao(valor, opcoes):
+                            if valor == "Selecione...":
+                                return None
+                            return opcoes.get(valor)
+
+                        sarc_forca_map = {
+                            "Nenhuma (0)": 0,
+                            "Alguma (1)": 1,
+                            "Muita ou não consegue (2)": 2
+                        }
+                        sarc_ajuda_map = sarc_forca_map
+                        sarc_levantar_map = sarc_forca_map
+                        sarc_escadas_map = sarc_forca_map
+                        sarc_quedas_map = {
+                            "Nenhuma (0)": 0,
+                            "1-3 quedas (1)": 1,
+                            "4 ou mais quedas (2)": 2
+                        }
+                        sarc_panturrilha_map = {
+                            ">33 cm (0)": 0,
+                            "<=33 cm (10)": 10
+                        }
+
                         dados = {
                             "data": data_avaliacao,
                             "profissional": profissional,
-                            "queixa": queixa,
-                            "diagnostico": diagnostico,
-                            "historico": historico,
-                            "medicamentos": medicamentos,
-                            "dor": dor,
-                            "mobilidade": mobilidade,
-                            "forca": forca,
-                            "limitacoes": limitacoes,
+                            "pressao_arterial_sistolica": parse_float(pressao_arterial_sistolica, "Pressão arterial sistólica"),
+                            "pressao_arterial_diastolica": parse_float(pressao_arterial_diastolica, "Pressão arterial diastólica"),
+                            "frequencia_cardiaca": parse_float(frequencia_cardiaca, "Frequência cardíaca"),
+                            "spo2": parse_float(spo2, "SpO2"),
+                            "ausculta_pulmonar": parse_float(ausculta_pulmonar, "Ausculta pulmonar"),
+                            "dor": int(dor),
+                            "mobilidade_grau": None if mobilidade_grau == "Selecione..." else mobilidade_grau,
+                            "mobilidade_descricao": mobilidade_descricao,
+                            "atividades": atividades,
+                            "tug": parse_float(tug, "TUG"),
                             "marcha": marcha,
+                            "reflexos_anteriores": None if reflexos_anteriores == "Selecione..." else reflexos_anteriores,
+                            "reflexos_posteriores": None if reflexos_posteriores == "Selecione..." else reflexos_posteriores,
+                            "reflexos_descricao": reflexos_descricao,
+                            "risco_quedas": None if risco_quedas == "Selecione..." else risco_quedas,
                             "equilibrio": equilibrio,
-                            "objetivos": objetivos,
+                            "perimetria_panturrilha": parse_float(perimetria_panturrilha, "Perimetria de panturrilha"),
+                            "sarc_f_forca": map_sarc_opcao(sarc_forca, sarc_forca_map),
+                            "sarc_f_ajuda_caminhar": map_sarc_opcao(sarc_ajuda, sarc_ajuda_map),
+                            "sarc_f_levantar_cadeira": map_sarc_opcao(sarc_levantar, sarc_levantar_map),
+                            "sarc_f_subir_escadas": map_sarc_opcao(sarc_escadas, sarc_escadas_map),
+                            "sarc_f_quedas": map_sarc_opcao(sarc_quedas, sarc_quedas_map),
+                            "sarc_f_panturrilha": map_sarc_opcao(sarc_panturrilha, sarc_panturrilha_map),
+                            "caminhada_6min_distancia": parse_float(caminhada_6min_distancia, "Caminhada 6 minutos (distância)"),
+                            "caminhada_6min_observacao": caminhada_6min_observacao,
+                            "chair_stand_test": parse_float(chair_stand_test, "Chair stand test"),
+                            "diagnostico_cinetico": diagnostico_cinetico,
                             "plano": plano
                         }
 
-                        resultado = inserir_avaliacao(paciente_id, dados)
+                        if erros:
+                            st.error(" ".join(erros))
+                            return
+
+                        resultado = inserir_avaliacao_inicial(paciente_id, dados)
 
                         if resultado is True:
-                            st.success("Avaliação inicial cadastrada com sucesso!")
-                            st.session_state.avaliacao_form_ativo = False
+                            st.success("Avaliação funcional cadastrada com sucesso!")
+                            st.session_state.avaliacao_inicial_form_ativo = False
                             st.rerun()
                         else:
                             st.error(f"Erro ao salvar: {resultado}")
@@ -901,14 +1163,14 @@ def render_cadastrar_profissional():
     telefone_prof = st.text_input("Telefone", key="prof_telefone")
     endereco_prof = st.text_input("Endereço", key="prof_endereco")
     tipo_contrato = st.text_input("Tipo de contrato", key="prof_contrato")
-    valor_fixo = st.number_input(
-        "Valor fixo de repasse (R$)",
+    percentual = st.number_input(
+        "Percentual de repasse (%)",
         min_value=0.0,
-        max_value=10000.0,
+        max_value=100.0,
         value=0.0,
         step=1.0,
         format="%.2f",
-        key="prof_valor_fixo"
+        key="prof_percentual"
     )
     ativo = st.checkbox("Ativo", value=True, key="prof_ativo")
 
@@ -924,8 +1186,8 @@ def render_cadastrar_profissional():
             st.error("CREFITO é obrigatório.")
         elif not telefone_digits:
             st.error("Telefone é obrigatório.")
-        elif valor_fixo <= 0:
-            st.error("Informe um valor fixo de repasse.")
+        elif percentual <= 0 or percentual > 100:
+            st.error("Informe um percentual válido (1 a 100).")
         else:
             resultado = inserir_profissional(
                 nome_prof.strip(),
@@ -934,7 +1196,7 @@ def render_cadastrar_profissional():
                 telefone_digits,
                 endereco_prof.strip(),
                 tipo_contrato.strip(),
-                valor_fixo,
+                percentual,
                 ativo
             )
             if resultado is True:
@@ -964,14 +1226,14 @@ def render_cadastrar_profissional():
                 telefone_edit = st.text_input("Telefone", value=prof[7] or "", key=f"edit_tel_{prof_id}")
                 endereco_edit = st.text_input("Endereço", value=prof[8] or "", key=f"edit_end_{prof_id}")
                 contrato_edit = st.text_input("Tipo de contrato", value=prof[2] or "", key=f"edit_contrato_{prof_id}")
-                valor_fixo_edit = st.number_input(
-                    "Valor fixo de repasse (R$)",
+                percentual_edit = st.number_input(
+                    "Percentual de repasse (%)",
                     min_value=0.0,
-                    max_value=10000.0,
+                    max_value=100.0,
                     value=float(prof[3] or 0),
                     step=1.0,
                     format="%.2f",
-                    key=f"edit_valor_{prof_id}"
+                    key=f"edit_percentual_{prof_id}"
                 )
                 ativo_edit = st.checkbox("Ativo", value=bool(prof[4]), key=f"edit_ativo_{prof_id}")
 
@@ -989,8 +1251,8 @@ def render_cadastrar_profissional():
                     st.error("CREFITO é obrigatório.")
                 elif not tel_digits:
                     st.error("Telefone é obrigatório.")
-                elif valor_fixo_edit <= 0:
-                    st.error("Informe um valor fixo de repasse.")
+                elif percentual_edit <= 0 or percentual_edit > 100:
+                    st.error("Informe um percentual válido (1 a 100).")
                 else:
                     resultado = atualizar_profissional(
                         prof_id,
@@ -1000,7 +1262,7 @@ def render_cadastrar_profissional():
                         tel_digits,
                         endereco_edit.strip(),
                         contrato_edit.strip(),
-                        valor_fixo_edit,
+                        percentual_edit,
                         ativo_edit
                     )
 
@@ -1046,7 +1308,7 @@ def render_cadastrar_profissional():
                 "Telefone",
                 "Endereço",
                 "Tipo contrato",
-                "Valor repasse (R$)",
+                "% Repasse",
                 "Ativo"
             ]
         )
@@ -1341,7 +1603,7 @@ def render_relatorio_profissional():
 
     if st.button("Gerar relatório", key="rel_prof_btn"):
         nome_prof = prof[1]
-        valor_fixo = float(prof[3] or 0)
+        percentual = float(prof[3] or 0)
         dados = relatorio_profissional_consultas(nome_prof, data_inicio, data_fim)
 
         if not dados:
@@ -1358,14 +1620,14 @@ def render_relatorio_profissional():
         for d in dados:
             total_consultas += 1
             total_consulta_valor += float(d[4] or 0)
-            total_repasse += valor_fixo
+            total_repasse += (float(d[4] or 0) * percentual) / 100.0
             linhas.append([
                 d[0],
                 d[1],
                 d[2],
                 d[3],
                 float(d[4] or 0),
-                valor_fixo
+                (float(d[4] or 0) * percentual) / 100.0
             ])
 
         st.markdown("### Resumo")
@@ -1391,7 +1653,10 @@ def render_relatorio_profissional():
         st.dataframe(df, use_container_width=True)
 
         periodo_txt = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
-        dados_pdf = [(d[1], d[2], d[3], float(d[4] or 0), valor_fixo) for d in dados]
+        dados_pdf = [
+            (d[1], d[2], d[3], float(d[4] or 0), (float(d[4] or 0) * percentual) / 100.0)
+            for d in dados
+        ]
         pdf_buffer = gerar_pdf_relatorio_profissional(nome_prof, periodo_txt, dados_pdf)
         nome_arquivo = f"relatorio_{_safe_filename(nome_prof)}_{data_inicio.strftime('%Y%m')}.pdf"
 
@@ -1834,7 +2099,7 @@ def render_financeiro():
         if not profissionais:
             st.info("Nenhum profissional ativo encontrado.")
         else:
-            op_prof = [f"{p[0]} - {p[1]} (R$ {float(p[3] or 0):.2f})" for p in profissionais]
+            op_prof = [f"{p[0]} - {p[1]} ({float(p[3] or 0):.2f}%)" for p in profissionais]
             escolha_prof = st.selectbox("Profissional", op_prof, key="rep_prof")
             prof_id = int(escolha_prof.split(" - ")[0])
             prof_dict = {p[0]: p for p in profissionais}
@@ -1880,7 +2145,9 @@ def render_financeiro():
                 evo_dict = {e[0]: e for e in evolucoes}
                 evo = evo_dict.get(atendimento_id)
 
-                valor_sugerido = float(prof_sel[3]) if prof_sel else 0.0
+                percentual = float(prof_sel[3]) if prof_sel else 0.0
+                valor_base = float(evo[6]) if evo else 0.0
+                valor_sugerido = (valor_base * percentual) / 100.0
 
                 col1, col2 = st.columns(2)
                 with col1:

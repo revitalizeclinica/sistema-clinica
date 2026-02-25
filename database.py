@@ -198,7 +198,39 @@ def listar_evolucoes_por_paciente(paciente_id):
         conn.close()
         return []
 
-def buscar_avaliacao(paciente_id):
+def listar_avaliacoes_clinicas(paciente_id):
+
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT
+            id,
+            data_avaliacao,
+            profissional,
+            created_at
+        FROM avaliacao_clinica
+        WHERE paciente_id = %s
+        ORDER BY data_avaliacao DESC, created_at DESC
+        """
+
+        cur.execute(sql, (paciente_id,))
+        resultado = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return resultado
+
+    except Exception:
+        conn.close()
+        return []
+    
+def buscar_avaliacao_clinica(avaliacao_id):
 
     conn = get_connection()
     if conn is None:
@@ -208,9 +240,123 @@ def buscar_avaliacao(paciente_id):
         cur = conn.cursor()
 
         sql = """
-        SELECT *
+        SELECT
+            a.id,
+            a.paciente_id,
+            a.data_avaliacao,
+            a.profissional,
+            a.queixa,
+            a.diagnostico,
+            a.historico_clinico,
+            a.historico_vida,
+            a.medicamentos_uso,
+            a.created_at
+        FROM avaliacao_clinica a
+        WHERE a.id = %s
+        """
+
+        cur.execute(sql, (avaliacao_id,))
+        resultado = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        return resultado
+
+    except Exception:
+        conn.close()
+        return None
+
+def inserir_avaliacao_clinica(paciente_id, dados):
+
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        sql_avaliacao = """
+        INSERT INTO avaliacao_clinica (
+            paciente_id,
+            data_avaliacao,
+            profissional,
+            queixa,
+            diagnostico,
+            historico_clinico,
+            historico_vida,
+            medicamentos_uso
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """
+
+        cur.execute(sql_avaliacao, (
+            paciente_id,
+            dados["data"],
+            dados.get("profissional"),
+            dados.get("queixa"),
+            dados.get("diagnostico"),
+            dados.get("historico_clinico"),
+            dados.get("historico_vida"),
+            dados.get("medicamentos_uso")
+        ))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        conn.close()
+        return str(e)
+
+def buscar_avaliacao_inicial(paciente_id):
+
+    conn = get_connection()
+    if conn is None:
+        return None
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT
+            id,
+            paciente_id,
+            data_avaliacao,
+            profissional,
+            pressao_arterial_sistolica,
+            pressao_arterial_diastolica,
+            frequencia_cardiaca,
+            spo2,
+            ausculta_pulmonar,
+            dor,
+            mobilidade_grau,
+            mobilidade_descricao,
+            atividades_basicas_instrumentais,
+            tug,
+            marcha,
+            reflexos_anteriores,
+            reflexos_posteriores,
+            reflexos_descricao,
+            risco_quedas,
+            equilibrio,
+            perimetria_panturrilha,
+            sarc_f_forca,
+            sarc_f_ajuda_caminhar,
+            sarc_f_levantar_cadeira,
+            sarc_f_subir_escadas,
+            sarc_f_quedas,
+            sarc_f_panturrilha,
+            caminhada_6min_distancia,
+            caminhada_6min_observacao,
+            chair_stand_test,
+            diagnostico_cinetico_funcional,
+            plano_terapeutico
         FROM avaliacao_inicial
         WHERE paciente_id = %s
+        ORDER BY data_avaliacao DESC, id DESC
+        LIMIT 1
         """
 
         cur.execute(sql, (paciente_id,))
@@ -224,8 +370,8 @@ def buscar_avaliacao(paciente_id):
     except Exception:
         conn.close()
         return None
-    
-def inserir_avaliacao(paciente_id, dados):
+
+def inserir_avaliacao_inicial(paciente_id, dados):
 
     conn = get_connection()
     if conn is None:
@@ -239,36 +385,68 @@ def inserir_avaliacao(paciente_id, dados):
             paciente_id,
             data_avaliacao,
             profissional,
-            queixa_principal,
-            diagnostico,
-            historico,
-            medicamentos,
+            pressao_arterial_sistolica,
+            pressao_arterial_diastolica,
+            frequencia_cardiaca,
+            spo2,
+            ausculta_pulmonar,
             dor,
-            mobilidade,
-            forca,
-            limitacoes,
+            mobilidade_grau,
+            mobilidade_descricao,
+            atividades_basicas_instrumentais,
+            tug,
             marcha,
+            reflexos_anteriores,
+            reflexos_posteriores,
+            reflexos_descricao,
+            risco_quedas,
             equilibrio,
-            objetivos,
+            perimetria_panturrilha,
+            sarc_f_forca,
+            sarc_f_ajuda_caminhar,
+            sarc_f_levantar_cadeira,
+            sarc_f_subir_escadas,
+            sarc_f_quedas,
+            sarc_f_panturrilha,
+            caminhada_6min_distancia,
+            caminhada_6min_observacao,
+            chair_stand_test,
+            diagnostico_cinetico_funcional,
             plano_terapeutico
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """
 
         cur.execute(sql, (
             paciente_id,
             dados["data"],
             dados["profissional"],
-            dados["queixa"],
-            dados["diagnostico"],
-            dados["historico"],
-            dados["medicamentos"],
+            dados["pressao_arterial_sistolica"],
+            dados["pressao_arterial_diastolica"],
+            dados["frequencia_cardiaca"],
+            dados["spo2"],
+            dados["ausculta_pulmonar"],
             dados["dor"],
-            dados["mobilidade"],
-            dados["forca"],
-            dados["limitacoes"],
+            dados["mobilidade_grau"],
+            dados["mobilidade_descricao"],
+            dados["atividades"],
+            dados["tug"],
             dados["marcha"],
+            dados["reflexos_anteriores"],
+            dados["reflexos_posteriores"],
+            dados["reflexos_descricao"],
+            dados["risco_quedas"],
             dados["equilibrio"],
-            dados["objetivos"],
+            dados["perimetria_panturrilha"],
+            dados["sarc_f_forca"],
+            dados["sarc_f_ajuda_caminhar"],
+            dados["sarc_f_levantar_cadeira"],
+            dados["sarc_f_subir_escadas"],
+            dados["sarc_f_quedas"],
+            dados["sarc_f_panturrilha"],
+            dados["caminhada_6min_distancia"],
+            dados["caminhada_6min_observacao"],
+            dados["chair_stand_test"],
+            dados["diagnostico_cinetico"],
             dados["plano"]
         ))
 
@@ -1122,7 +1300,7 @@ def listar_despesas(data_inicio, data_fim, categoria, tipo):
         return []
 
 
-def inserir_profissional(nome, cpf, crefito, telefone, endereco, tipo_contrato, valor_repasse_fixo, ativo):
+def inserir_profissional(nome, cpf, crefito, telefone, endereco, tipo_contrato, percentual_repasse, ativo):
     conn = get_connection()
     if conn is None:
         return False
@@ -1138,12 +1316,12 @@ def inserir_profissional(nome, cpf, crefito, telefone, endereco, tipo_contrato, 
             telefone,
             endereco,
             tipo_contrato,
-            valor_repasse_fixo,
+            percentual_repasse,
             ativo
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         '''
 
-        cur.execute(sql, (nome, cpf, crefito, telefone, endereco, tipo_contrato, valor_repasse_fixo, ativo))
+        cur.execute(sql, (nome, cpf, crefito, telefone, endereco, tipo_contrato, percentual_repasse, ativo))
         conn.commit()
 
         cur.close()
@@ -1159,7 +1337,7 @@ def inserir_profissional(nome, cpf, crefito, telefone, endereco, tipo_contrato, 
 
 
 def atualizar_profissional(profissional_id, nome, cpf, crefito, telefone, endereco,
-                           tipo_contrato, valor_repasse_fixo, ativo):
+                           tipo_contrato, percentual_repasse, ativo):
     conn = get_connection()
     if conn is None:
         return False
@@ -1176,7 +1354,7 @@ def atualizar_profissional(profissional_id, nome, cpf, crefito, telefone, endere
             telefone = %s,
             endereco = %s,
             tipo_contrato = %s,
-            valor_repasse_fixo = %s,
+            percentual_repasse = %s,
             ativo = %s
         WHERE id = %s
         '''
@@ -1188,7 +1366,7 @@ def atualizar_profissional(profissional_id, nome, cpf, crefito, telefone, endere
             telefone,
             endereco,
             tipo_contrato,
-            valor_repasse_fixo,
+            percentual_repasse,
             ativo,
             profissional_id
         ))
@@ -1214,7 +1392,7 @@ def listar_profissionais(ativos_only):
 
         if ativos_only:
             sql = '''
-            SELECT id, nome, tipo_contrato, valor_repasse_fixo, ativo, cpf, crefito, telefone, endereco
+            SELECT id, nome, tipo_contrato, percentual_repasse, ativo, cpf, crefito, telefone, endereco
             FROM profissional
             WHERE ativo = TRUE
             ORDER BY nome
@@ -1222,7 +1400,7 @@ def listar_profissionais(ativos_only):
             cur.execute(sql)
         else:
             sql = '''
-            SELECT id, nome, tipo_contrato, valor_repasse_fixo, ativo, cpf, crefito, telefone, endereco
+            SELECT id, nome, tipo_contrato, percentual_repasse, ativo, cpf, crefito, telefone, endereco
             FROM profissional
             ORDER BY nome
             '''

@@ -5,6 +5,7 @@ from screens import (
     render_listar_pacientes,
     render_nova_evolucao,
     render_historico_paciente,
+    render_avaliacao_clinica,
     render_avaliacao_inicial,
     render_relatorio_paciente,
     render_relatorio_contador,
@@ -73,9 +74,10 @@ main_menu = st.sidebar.selectbox(
     [
         "Início",
         "Cadastrar Paciente",
-        "Nova Evolução",
+        "Avaliação / Evolução diária",
         "Histórico do Paciente",
-        "Avaliação Inicial"
+        "Avaliação Clínica",
+        "Avaliação Funcional"
     ],
     key="main_menu",
     on_change=on_main_menu_change
@@ -162,9 +164,10 @@ MENU_HANDLERS = {
     "Início": render_inicio,
     "Cadastrar Paciente": render_cadastrar_paciente,
     "Listar Pacientes": render_listar_pacientes,
-    "Nova Evolução": render_nova_evolucao,
+    "Avaliação / Evolução diária": render_nova_evolucao,
     "Histórico do Paciente": render_historico_paciente,
-    "Avaliação Inicial": render_avaliacao_inicial,
+    "Avaliação Clínica": render_avaliacao_clinica,
+    "Avaliação Funcional": render_avaliacao_inicial,
     "Relatório por Paciente": render_relatorio_paciente,
     "Relatório para Contador": render_relatorio_contador,
     "Atualizar Preços": render_atualizar_precos,
