@@ -16,6 +16,7 @@ def inserir_paciente(
     nome,
     cpf,
     data_nascimento,
+    sexo,
     telefone,
     email,
     contato_emergencia,
@@ -38,6 +39,7 @@ def inserir_paciente(
             nome,
             cpf,
             data_nascimento,
+            sexo,
             telefone,
             email,
             contato_emergencia,
@@ -47,13 +49,14 @@ def inserir_paciente(
             pagador_nome,
             pagador_cpf
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         cur.execute(sql, (
             nome,
             cpf,
             data_nascimento,
+            sexo,
             telefone,
             email,
             contato_emergencia,
@@ -229,6 +232,113 @@ def listar_avaliacoes_clinicas(paciente_id):
     except Exception:
         conn.close()
         return []
+
+
+def listar_avaliacoes_clinica_funcional(paciente_id):
+
+    conn = get_connection()
+    if conn is None:
+        return []
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT data_avaliacao, profissional
+        FROM (
+            SELECT data_avaliacao, profissional
+            FROM avaliacao_clinica
+            WHERE paciente_id = %s
+            UNION
+            SELECT data_avaliacao, profissional
+            FROM avaliacao_inicial
+            WHERE paciente_id = %s
+        ) AS aval
+        ORDER BY data_avaliacao DESC
+        """
+
+        cur.execute(sql, (paciente_id, paciente_id))
+        resultado = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        return resultado
+
+    except Exception:
+        conn.close()
+        return []
+
+
+def buscar_avaliacao_clinica_funcional(paciente_id, data_avaliacao, profissional):
+
+    conn = get_connection()
+    if conn is None:
+        return None
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT
+            COALESCE(a.paciente_id, f.paciente_id) AS paciente_id,
+            COALESCE(a.data_avaliacao, f.data_avaliacao) AS data_avaliacao,
+            COALESCE(a.profissional, f.profissional) AS profissional,
+            a.queixa,
+            a.diagnostico,
+            a.historico_clinico,
+            a.historico_vida,
+            a.medicamentos_uso,
+            f.pressao_arterial_sistolica,
+            f.pressao_arterial_diastolica,
+            f.frequencia_cardiaca,
+            f.spo2,
+            f.ausculta_pulmonar,
+            f.dor,
+            f.mobilidade_grau,
+            f.mobilidade_descricao,
+            f.atividades_basicas_instrumentais,
+            f.tug,
+            f.marcha,
+            f.reflexos_anteriores,
+            f.reflexos_posteriores,
+            f.reflexos_descricao,
+            f.risco_quedas,
+            f.equilibrio,
+            f.perimetria_panturrilha,
+            f.sarc_f_forca,
+            f.sarc_f_ajuda_caminhar,
+            f.sarc_f_levantar_cadeira,
+            f.sarc_f_subir_escadas,
+            f.sarc_f_quedas,
+            f.sarc_f_panturrilha,
+            f.caminhada_6min_distancia,
+            f.caminhada_6min_observacao,
+            f.chair_stand_test,
+            f.diagnostico_cinetico_funcional,
+            f.plano_terapeutico
+        FROM avaliacao_clinica a
+        FULL OUTER JOIN avaliacao_inicial f
+            ON a.paciente_id = f.paciente_id
+            AND a.data_avaliacao = f.data_avaliacao
+            AND a.profissional IS NOT DISTINCT FROM f.profissional
+        WHERE COALESCE(a.paciente_id, f.paciente_id) = %s
+          AND COALESCE(a.data_avaliacao, f.data_avaliacao) = %s
+          AND COALESCE(a.profissional, f.profissional) IS NOT DISTINCT FROM %s
+        LIMIT 1
+        """
+
+        cur.execute(sql, (paciente_id, data_avaliacao, profissional))
+        resultado = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        return resultado
+
+    except Exception:
+        conn.close()
+        return None
     
 def buscar_avaliacao_clinica(avaliacao_id):
 
@@ -307,6 +417,280 @@ def inserir_avaliacao_clinica(paciente_id, dados):
         return True
 
     except Exception as e:
+        conn.close()
+        return str(e)
+
+
+def inserir_avaliacao_clinica_funcional(paciente_id, dados_clinica, dados_funcional,
+                                        tipo_atendimento_id, valor_cobrado):
+
+    conn = get_connection()
+    if conn is None:
+        return False
+
+    try:
+        cur = conn.cursor()
+
+        data_avaliacao = dados_clinica["data"]
+        profissional = dados_clinica.get("profissional")
+
+        cur.execute(
+            """
+            SELECT id
+            FROM avaliacao_clinica
+            WHERE paciente_id = %s
+              AND data_avaliacao = %s
+              AND profissional IS NOT DISTINCT FROM %s
+            """,
+            (paciente_id, data_avaliacao, profissional)
+        )
+        clinica_id = cur.fetchone()
+
+        if clinica_id:
+            sql_clinica = """
+            UPDATE avaliacao_clinica
+            SET
+                queixa = %s,
+                diagnostico = %s,
+                historico_clinico = %s,
+                historico_vida = %s,
+                medicamentos_uso = %s
+            WHERE id = %s
+            """
+            cur.execute(sql_clinica, (
+                dados_clinica.get("queixa"),
+                dados_clinica.get("diagnostico"),
+                dados_clinica.get("historico_clinico"),
+                dados_clinica.get("historico_vida"),
+                dados_clinica.get("medicamentos_uso"),
+                clinica_id[0]
+            ))
+        else:
+            sql_clinica = """
+            INSERT INTO avaliacao_clinica (
+                paciente_id,
+                data_avaliacao,
+                profissional,
+                queixa,
+                diagnostico,
+                historico_clinico,
+                historico_vida,
+                medicamentos_uso
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            """
+
+            cur.execute(sql_clinica, (
+                paciente_id,
+                data_avaliacao,
+                profissional,
+                dados_clinica.get("queixa"),
+                dados_clinica.get("diagnostico"),
+                dados_clinica.get("historico_clinico"),
+                dados_clinica.get("historico_vida"),
+                dados_clinica.get("medicamentos_uso")
+            ))
+
+        cur.execute(
+            """
+            SELECT id
+            FROM avaliacao_inicial
+            WHERE paciente_id = %s
+              AND data_avaliacao = %s
+              AND profissional IS NOT DISTINCT FROM %s
+            """,
+            (paciente_id, data_avaliacao, profissional)
+        )
+        funcional_id = cur.fetchone()
+
+        if funcional_id:
+            sql_funcional = """
+            UPDATE avaliacao_inicial
+            SET
+                pressao_arterial_sistolica = %s,
+                pressao_arterial_diastolica = %s,
+                frequencia_cardiaca = %s,
+                spo2 = %s,
+                ausculta_pulmonar = %s,
+                dor = %s,
+                mobilidade_grau = %s,
+                mobilidade_descricao = %s,
+                atividades_basicas_instrumentais = %s,
+                tug = %s,
+                marcha = %s,
+                reflexos_anteriores = %s,
+                reflexos_posteriores = %s,
+                reflexos_descricao = %s,
+                risco_quedas = %s,
+                equilibrio = %s,
+                perimetria_panturrilha = %s,
+                sarc_f_forca = %s,
+                sarc_f_ajuda_caminhar = %s,
+                sarc_f_levantar_cadeira = %s,
+                sarc_f_subir_escadas = %s,
+                sarc_f_quedas = %s,
+                sarc_f_panturrilha = %s,
+                caminhada_6min_distancia = %s,
+                caminhada_6min_observacao = %s,
+                chair_stand_test = %s,
+                diagnostico_cinetico_funcional = %s,
+                plano_terapeutico = %s
+            WHERE id = %s
+            """
+
+            cur.execute(sql_funcional, (
+                dados_funcional["pressao_arterial_sistolica"],
+                dados_funcional["pressao_arterial_diastolica"],
+                dados_funcional["frequencia_cardiaca"],
+                dados_funcional["spo2"],
+                dados_funcional["ausculta_pulmonar"],
+                dados_funcional["dor"],
+                dados_funcional["mobilidade_grau"],
+                dados_funcional["mobilidade_descricao"],
+                dados_funcional["atividades"],
+                dados_funcional["tug"],
+                dados_funcional["marcha"],
+                dados_funcional["reflexos_anteriores"],
+                dados_funcional["reflexos_posteriores"],
+                dados_funcional["reflexos_descricao"],
+                dados_funcional["risco_quedas"],
+                dados_funcional["equilibrio"],
+                dados_funcional["perimetria_panturrilha"],
+                dados_funcional["sarc_f_forca"],
+                dados_funcional["sarc_f_ajuda_caminhar"],
+                dados_funcional["sarc_f_levantar_cadeira"],
+                dados_funcional["sarc_f_subir_escadas"],
+                dados_funcional["sarc_f_quedas"],
+                dados_funcional["sarc_f_panturrilha"],
+                dados_funcional["caminhada_6min_distancia"],
+                dados_funcional["caminhada_6min_observacao"],
+                dados_funcional["chair_stand_test"],
+                dados_funcional["diagnostico_cinetico"],
+                dados_funcional["plano"],
+                funcional_id[0]
+            ))
+        else:
+            sql_funcional = """
+            INSERT INTO avaliacao_inicial (
+                paciente_id,
+                data_avaliacao,
+                profissional,
+                pressao_arterial_sistolica,
+                pressao_arterial_diastolica,
+                frequencia_cardiaca,
+                spo2,
+                ausculta_pulmonar,
+                dor,
+                mobilidade_grau,
+                mobilidade_descricao,
+                atividades_basicas_instrumentais,
+                tug,
+                marcha,
+                reflexos_anteriores,
+                reflexos_posteriores,
+                reflexos_descricao,
+                risco_quedas,
+                equilibrio,
+                perimetria_panturrilha,
+                sarc_f_forca,
+                sarc_f_ajuda_caminhar,
+                sarc_f_levantar_cadeira,
+                sarc_f_subir_escadas,
+                sarc_f_quedas,
+                sarc_f_panturrilha,
+                caminhada_6min_distancia,
+                caminhada_6min_observacao,
+                chair_stand_test,
+                diagnostico_cinetico_funcional,
+                plano_terapeutico
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """
+
+            cur.execute(sql_funcional, (
+                paciente_id,
+                data_avaliacao,
+                profissional,
+                dados_funcional["pressao_arterial_sistolica"],
+                dados_funcional["pressao_arterial_diastolica"],
+                dados_funcional["frequencia_cardiaca"],
+                dados_funcional["spo2"],
+                dados_funcional["ausculta_pulmonar"],
+                dados_funcional["dor"],
+                dados_funcional["mobilidade_grau"],
+                dados_funcional["mobilidade_descricao"],
+                dados_funcional["atividades"],
+                dados_funcional["tug"],
+                dados_funcional["marcha"],
+                dados_funcional["reflexos_anteriores"],
+                dados_funcional["reflexos_posteriores"],
+                dados_funcional["reflexos_descricao"],
+                dados_funcional["risco_quedas"],
+                dados_funcional["equilibrio"],
+                dados_funcional["perimetria_panturrilha"],
+                dados_funcional["sarc_f_forca"],
+                dados_funcional["sarc_f_ajuda_caminhar"],
+                dados_funcional["sarc_f_levantar_cadeira"],
+                dados_funcional["sarc_f_subir_escadas"],
+                dados_funcional["sarc_f_quedas"],
+                dados_funcional["sarc_f_panturrilha"],
+                dados_funcional["caminhada_6min_distancia"],
+                dados_funcional["caminhada_6min_observacao"],
+                dados_funcional["chair_stand_test"],
+                dados_funcional["diagnostico_cinetico"],
+                dados_funcional["plano"]
+            ))
+
+        cur.execute(
+            """
+            SELECT id
+            FROM evolucao
+            WHERE paciente_id = %s
+              AND tipo_atendimento_id = %s
+              AND data_registro = %s
+              AND profissional IS NOT DISTINCT FROM %s
+              AND resumo_evolucao = 'Avaliação clínica/funcional'
+            LIMIT 1
+            """,
+            (paciente_id, tipo_atendimento_id, data_avaliacao, profissional)
+        )
+        evolucao_id = cur.fetchone()
+
+        if not evolucao_id:
+            sql_evolucao = """
+            INSERT INTO evolucao (
+                paciente_id,
+                tipo_atendimento_id,
+                data_registro,
+                profissional,
+                resumo_evolucao,
+                condutas,
+                resposta_paciente,
+                objetivos,
+                observacoes,
+                valor_cobrado
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """
+
+            cur.execute(sql_evolucao, (
+                paciente_id,
+                tipo_atendimento_id,
+                data_avaliacao,
+                profissional,
+                "Avaliação clínica/funcional",
+                "",
+                "",
+                "",
+                "",
+                valor_cobrado
+            ))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        conn.rollback()
         conn.close()
         return str(e)
 
@@ -413,7 +797,7 @@ def inserir_avaliacao_inicial(paciente_id, dados):
             chair_stand_test,
             diagnostico_cinetico_funcional,
             plano_terapeutico
-        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """
 
         cur.execute(sql, (
@@ -515,6 +899,36 @@ def listar_tipos_atendimento_com_valor():
     except Exception as e:
         conn.close()
         return []
+
+
+def buscar_tipo_atendimento_por_descricao(descricao):
+
+    conn = get_connection()
+    if conn is None:
+        return None
+
+    try:
+        cur = conn.cursor()
+
+        sql = """
+        SELECT id, valor
+        FROM tipo_atendimento
+        WHERE ativo = TRUE
+          AND descricao = %s
+        LIMIT 1
+        """
+
+        cur.execute(sql, (descricao,))
+        resultado = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        return resultado
+
+    except Exception:
+        conn.close()
+        return None
 
 def atualizar_preco_tipo_atendimento(tipo_id, novo_valor):
 
@@ -1555,14 +1969,17 @@ def resumo_financeiro(data_inicio, data_fim):
 
         cur.execute(
             '''
-            SELECT status, COALESCE(SUM(valor), 0)
-            FROM repasse_profissional
-            WHERE data_repasse BETWEEN %s AND %s
-            GROUP BY status
+            SELECT COALESCE(SUM(
+                COALESCE(e.valor_cobrado, t.valor) * COALESCE(pr.percentual_repasse, 0) / 100.0
+            ), 0)
+            FROM evolucao e
+            JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+            LEFT JOIN profissional pr ON pr.nome = e.profissional
+            WHERE e.data_registro::date BETWEEN %s AND %s
             ''',
             (data_inicio, data_fim)
         )
-        repasses = {row[0]: float(row[1]) for row in cur.fetchall()}
+        repasse_total = float(cur.fetchone()[0] or 0)
 
         cur.close()
         conn.close()
@@ -1570,7 +1987,7 @@ def resumo_financeiro(data_inicio, data_fim):
         return {
             "pagamentos": pagamentos,
             "despesas_total": despesas_total,
-            "repasses": repasses
+            "repasse_total": repasse_total
         }
 
     except Exception:
@@ -1750,11 +2167,12 @@ def financeiro_repasse_mensal(data_inicio, data_fim):
 
         sql = '''
         SELECT
-            date_trunc('month', rp.data_repasse)::date AS mes,
-            SUM(rp.valor) AS total
-        FROM repasse_profissional rp
-        WHERE rp.status <> 'cancelado'
-          AND rp.data_repasse BETWEEN %s AND %s
+            date_trunc('month', e.data_registro)::date AS mes,
+            SUM(COALESCE(e.valor_cobrado, t.valor) * COALESCE(pr.percentual_repasse, 0) / 100.0) AS total
+        FROM evolucao e
+        JOIN tipo_atendimento t ON e.tipo_atendimento_id = t.id
+        LEFT JOIN profissional pr ON pr.nome = e.profissional
+        WHERE e.data_registro::date BETWEEN %s AND %s
         GROUP BY mes
         ORDER BY mes
         '''
