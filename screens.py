@@ -448,22 +448,90 @@ def render_historico_paciente():
 
         if st.session_state.evolucao_aberta:
             st.markdown("---")
-            st.subheader("Detalhes do Atendimento")
-
             detalhe = st.session_state.evolucao_aberta
+            tipo_atendimento = detalhe[3]
 
-            st.write(f"**Data:** {detalhe[1]}")
-            st.write(f"**Profissional:** {detalhe[2]}")
+            if tipo_atendimento == "Avaliação Clínica/Funcional":
+                st.subheader("Detalhes da Avaliação Clínica/Funcional")
+                st.write(f"**Data:** {detalhe[1]}")
+                st.write(f"**Profissional:** {detalhe[2]}")
 
-            def exibir_titulo_valor(titulo, valor):
-                st.write(f"### {titulo}")
-                st.write(valor if valor else "Não informado")
+                avaliacao = buscar_avaliacao_clinica_funcional(
+                    paciente_id,
+                    detalhe[1],
+                    detalhe[2]
+                )
 
-            exibir_titulo_valor("Queixas", detalhe[3])
-            exibir_titulo_valor("Condutas", detalhe[4])
-            exibir_titulo_valor("Respostas", detalhe[5])
-            exibir_titulo_valor("Objetivos", detalhe[6])
-            exibir_titulo_valor("Observações", detalhe[7])
+                if not avaliacao:
+                    st.info("Detalhes da avaliação não encontrados.")
+                else:
+                    def mostrar_campo(titulo, valor):
+                        st.write(f"### {titulo}")
+                        st.write(valor if valor not in (None, "") else "Não informado")
+
+                    st.write("### Avaliação Clínica")
+                    mostrar_campo("Queixa", avaliacao[3])
+                    mostrar_campo("Diagnóstico", avaliacao[4])
+                    mostrar_campo("Histórico clínico", avaliacao[5])
+                    mostrar_campo("Histórico de vida", avaliacao[6])
+                    mostrar_campo("Medicamentos em uso", avaliacao[7])
+
+                    st.write("### Sinais Vitais")
+                    mostrar_campo("Pressão arterial sistólica", avaliacao[8])
+                    mostrar_campo("Pressão arterial diastólica", avaliacao[9])
+                    mostrar_campo("Frequência cardíaca", avaliacao[10])
+                    mostrar_campo("SpO2", avaliacao[11])
+                    mostrar_campo("Ausculta pulmonar", avaliacao[12])
+
+                    mostrar_campo("Avaliação da dor (0-10)", avaliacao[13])
+
+                    st.write("### Mobilidade")
+                    mostrar_campo("Grau de dependência", avaliacao[14])
+                    mostrar_campo("Descrição", avaliacao[15])
+
+                    mostrar_campo("Atividades básicas e instrumentais do cotidiano", avaliacao[16])
+                    mostrar_campo("TUG", avaliacao[17])
+                    mostrar_campo("Marcha", avaliacao[18])
+
+                    st.write("### Avaliação dos Reflexos")
+                    mostrar_campo("Anteriores", avaliacao[19])
+                    mostrar_campo("Posteriores", avaliacao[20])
+                    mostrar_campo("Descrição", avaliacao[21])
+
+                    mostrar_campo("Risco de quedas", avaliacao[22])
+                    mostrar_campo("Equilíbrio", avaliacao[23])
+                    mostrar_campo("Perimetria de panturrilha", avaliacao[24])
+
+                    st.write("### SARC-F")
+                    mostrar_campo("Força", avaliacao[25])
+                    mostrar_campo("Ajuda para caminhar", avaliacao[26])
+                    mostrar_campo("Levantar da cadeira", avaliacao[27])
+                    mostrar_campo("Subir escadas", avaliacao[28])
+                    mostrar_campo("Quedas", avaliacao[29])
+                    mostrar_campo("Panturrilha", avaliacao[30])
+
+                    st.write("### Teste de Caminhada 6 Minutos")
+                    mostrar_campo("Distância", avaliacao[31])
+                    mostrar_campo("Descrição", avaliacao[32])
+
+                    mostrar_campo("Chair stand test", avaliacao[33])
+                    mostrar_campo("Diagnóstico Cinético Funcional", avaliacao[34])
+                    mostrar_campo("Plano terapêutico", avaliacao[35])
+            else:
+                st.subheader("Detalhes do Atendimento")
+
+                st.write(f"**Data:** {detalhe[1]}")
+                st.write(f"**Profissional:** {detalhe[2]}")
+
+                def exibir_titulo_valor(titulo, valor):
+                    st.write(f"### {titulo}")
+                    st.write(valor if valor else "Não informado")
+
+                exibir_titulo_valor("Queixas", detalhe[4])
+                exibir_titulo_valor("Condutas", detalhe[5])
+                exibir_titulo_valor("Respostas", detalhe[6])
+                exibir_titulo_valor("Objetivos", detalhe[7])
+                exibir_titulo_valor("Observações", detalhe[8])
 
 
 def render_avaliacao_clinica_funcional():
