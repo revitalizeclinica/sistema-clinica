@@ -456,11 +456,19 @@ def render_historico_paciente():
                 st.write(f"**Data:** {detalhe[1]}")
                 st.write(f"**Profissional:** {detalhe[2]}")
 
+                data_avaliacao = detalhe[1].date() if hasattr(detalhe[1], "date") else detalhe[1]
                 avaliacao = buscar_avaliacao_clinica_funcional(
                     paciente_id,
-                    detalhe[1],
+                    data_avaliacao,
                     detalhe[2]
                 )
+
+                if not avaliacao:
+                    avaliacao = buscar_avaliacao_clinica_funcional(
+                        paciente_id,
+                        data_avaliacao,
+                        None
+                    )
 
                 if not avaliacao:
                     st.info("Detalhes da avaliação não encontrados.")
@@ -655,10 +663,12 @@ def render_avaliacao_clinica_funcional():
                             "diagnostico_cinetico_funcional": detalhe[34],
                             "plano_terapeutico": detalhe[35]
                         }
+                        st.session_state.avaliacao_cf_aberta_data = None
+                        st.session_state.avaliacao_cf_aberta_prof = None
                         st.session_state.avaliacao_cf_form_ativo = True
                         st.rerun()
 
-        if st.session_state.avaliacao_cf_aberta_data:
+        if st.session_state.avaliacao_cf_aberta_data and not st.session_state.get("avaliacao_cf_edit"):
             detalhe = buscar_avaliacao_clinica_funcional(
                 paciente_id,
                 st.session_state.avaliacao_cf_aberta_data,

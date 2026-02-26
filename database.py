@@ -273,7 +273,7 @@ def listar_avaliacoes_clinica_funcional(paciente_id):
         return []
 
 
-def buscar_avaliacao_clinica_funcional(paciente_id, data_avaliacao, profissional):
+def buscar_avaliacao_clinica_funcional(paciente_id, data_avaliacao, profissional=None):
 
     conn = get_connection()
     if conn is None:
@@ -282,62 +282,124 @@ def buscar_avaliacao_clinica_funcional(paciente_id, data_avaliacao, profissional
     try:
         cur = conn.cursor()
 
-        sql = """
+        sql_clinica = """
         SELECT
-            COALESCE(a.paciente_id, f.paciente_id) AS paciente_id,
-            COALESCE(a.data_avaliacao, f.data_avaliacao) AS data_avaliacao,
-            COALESCE(a.profissional, f.profissional) AS profissional,
-            a.queixa,
-            a.diagnostico,
-            a.historico_clinico,
-            a.historico_vida,
-            a.medicamentos_uso,
-            f.pressao_arterial_sistolica,
-            f.pressao_arterial_diastolica,
-            f.frequencia_cardiaca,
-            f.spo2,
-            f.ausculta_pulmonar,
-            f.dor,
-            f.mobilidade_grau,
-            f.mobilidade_descricao,
-            f.atividades_basicas_instrumentais,
-            f.tug,
-            f.marcha,
-            f.reflexos_anteriores,
-            f.reflexos_posteriores,
-            f.reflexos_descricao,
-            f.risco_quedas,
-            f.equilibrio,
-            f.perimetria_panturrilha,
-            f.sarc_f_forca,
-            f.sarc_f_ajuda_caminhar,
-            f.sarc_f_levantar_cadeira,
-            f.sarc_f_subir_escadas,
-            f.sarc_f_quedas,
-            f.sarc_f_panturrilha,
-            f.caminhada_6min_distancia,
-            f.caminhada_6min_observacao,
-            f.chair_stand_test,
-            f.diagnostico_cinetico_funcional,
-            f.plano_terapeutico
-        FROM avaliacao_clinica a
-        FULL OUTER JOIN avaliacao_inicial f
-            ON a.paciente_id = f.paciente_id
-            AND a.data_avaliacao = f.data_avaliacao
-            AND a.profissional IS NOT DISTINCT FROM f.profissional
-        WHERE COALESCE(a.paciente_id, f.paciente_id) = %s
-          AND COALESCE(a.data_avaliacao, f.data_avaliacao) = %s
-          AND COALESCE(a.profissional, f.profissional) IS NOT DISTINCT FROM %s
+            paciente_id,
+            data_avaliacao,
+            profissional,
+            queixa,
+            diagnostico,
+            historico_clinico,
+            historico_vida,
+            medicamentos_uso
+        FROM avaliacao_clinica
+        WHERE paciente_id = %s
+          AND data_avaliacao::date = %s
+          AND (%s IS NULL OR profissional IS NOT DISTINCT FROM %s)
+        ORDER BY data_avaliacao DESC
         LIMIT 1
         """
 
-        cur.execute(sql, (paciente_id, data_avaliacao, profissional))
-        resultado = cur.fetchone()
+        cur.execute(sql_clinica, (paciente_id, data_avaliacao, profissional, profissional))
+        clinica = cur.fetchone()
+
+        sql_funcional = """
+        SELECT
+            paciente_id,
+            data_avaliacao,
+            profissional,
+            pressao_arterial_sistolica,
+            pressao_arterial_diastolica,
+            frequencia_cardiaca,
+            spo2,
+            ausculta_pulmonar,
+            dor,
+            mobilidade_grau,
+            mobilidade_descricao,
+            atividades_basicas_instrumentais,
+            tug,
+            marcha,
+            reflexos_anteriores,
+            reflexos_posteriores,
+            reflexos_descricao,
+            risco_quedas,
+            equilibrio,
+            perimetria_panturrilha,
+            sarc_f_forca,
+            sarc_f_ajuda_caminhar,
+            sarc_f_levantar_cadeira,
+            sarc_f_subir_escadas,
+            sarc_f_quedas,
+            sarc_f_panturrilha,
+            caminhada_6min_distancia,
+            caminhada_6min_observacao,
+            chair_stand_test,
+            diagnostico_cinetico_funcional,
+            plano_terapeutico
+        FROM avaliacao_inicial
+        WHERE paciente_id = %s
+          AND data_avaliacao::date = %s
+          AND (%s IS NULL OR profissional IS NOT DISTINCT FROM %s)
+        ORDER BY data_avaliacao DESC
+        LIMIT 1
+        """
+
+        cur.execute(sql_funcional, (paciente_id, data_avaliacao, profissional, profissional))
+        funcional = cur.fetchone()
 
         cur.close()
         conn.close()
 
-        return resultado
+        if not clinica and not funcional:
+            return None
+
+        data_ret = None
+        prof_ret = None
+        if clinica:
+            data_ret = clinica[1]
+            prof_ret = clinica[2]
+        elif funcional:
+            data_ret = funcional[1]
+            prof_ret = funcional[2]
+
+        return (
+            paciente_id,
+            data_ret,
+            prof_ret,
+            clinica[3] if clinica else None,
+            clinica[4] if clinica else None,
+            clinica[5] if clinica else None,
+            clinica[6] if clinica else None,
+            clinica[7] if clinica else None,
+            funcional[3] if funcional else None,
+            funcional[4] if funcional else None,
+            funcional[5] if funcional else None,
+            funcional[6] if funcional else None,
+            funcional[7] if funcional else None,
+            funcional[8] if funcional else None,
+            funcional[9] if funcional else None,
+            funcional[10] if funcional else None,
+            funcional[11] if funcional else None,
+            funcional[12] if funcional else None,
+            funcional[13] if funcional else None,
+            funcional[14] if funcional else None,
+            funcional[15] if funcional else None,
+            funcional[16] if funcional else None,
+            funcional[17] if funcional else None,
+            funcional[18] if funcional else None,
+            funcional[19] if funcional else None,
+            funcional[20] if funcional else None,
+            funcional[21] if funcional else None,
+            funcional[22] if funcional else None,
+            funcional[23] if funcional else None,
+            funcional[24] if funcional else None,
+            funcional[25] if funcional else None,
+            funcional[26] if funcional else None,
+            funcional[27] if funcional else None,
+            funcional[28] if funcional else None,
+            funcional[29] if funcional else None,
+            funcional[30] if funcional else None
+        )
 
     except Exception:
         conn.close()
