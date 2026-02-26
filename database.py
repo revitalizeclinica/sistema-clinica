@@ -19,6 +19,7 @@ def inserir_paciente(
     sexo,
     telefone,
     email,
+    endereco,
     contato_emergencia,
     observacoes,
     solicita_nota=False,
@@ -42,6 +43,7 @@ def inserir_paciente(
             sexo,
             telefone,
             email,
+            endereco,
             contato_emergencia,
             observacoes,
             solicita_nota,
@@ -49,7 +51,7 @@ def inserir_paciente(
             pagador_nome,
             pagador_cpf
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         cur.execute(sql, (
@@ -59,6 +61,7 @@ def inserir_paciente(
             sexo,
             telefone,
             email,
+            endereco,
             contato_emergencia,
             observacoes,
             solicita_nota,

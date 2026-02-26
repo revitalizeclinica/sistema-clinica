@@ -155,6 +155,7 @@ def render_cadastrar_paciente():
     sexo = st.selectbox("Sexo", sexo_opcoes, key=f"sexo_{form_key}")
     telefone = st.text_input("Telefone", key=f"telefone_{form_key}")
     email = st.text_input("Email", key=f"email_{form_key}")
+    endereco = st.text_area("Endereço", key=f"endereco_{form_key}")
     contato_emergencia = st.text_input("Contato de emergência", key=f"contato_{form_key}")
     observacoes = st.text_area("Observações", key=f"observacoes_{form_key}")
 
@@ -210,7 +211,7 @@ def render_cadastrar_paciente():
             resultado = inserir_paciente(
                 nome, cpf_digits, data_nascimento,
                 None if sexo == "Selecione..." else sexo,
-                telefone, email, contato_emergencia, observacoes, solicita_nota,
+                telefone, email, endereco, contato_emergencia, observacoes, solicita_nota,
                 pagador_mesmo_paciente,
                 pagador_nome if pagador_nome else None,
                 pagador_cpf_digits if pagador_cpf_digits else None
@@ -779,6 +780,46 @@ def render_avaliacao_clinica_funcional():
             sarc_quedas_opcoes = ["Selecione...", "Nenhuma (0)", "1-3 quedas (1)", "4 ou mais quedas (2)"]
             sarc_panturrilha_opcoes = ["Selecione...", ">33 cm (0)", "<=33 cm (10)"]
 
+            sarc_forca_map = {
+                "Nenhuma (0)": 0,
+                "Alguma (1)": 1,
+                "Muita ou não consegue (2)": 2
+            }
+            sarc_ajuda_map = sarc_forca_map
+            sarc_levantar_map = sarc_forca_map
+            sarc_escadas_map = sarc_forca_map
+            sarc_quedas_map = {
+                "Nenhuma (0)": 0,
+                "1-3 quedas (1)": 1,
+                "4 ou mais quedas (2)": 2
+            }
+            sarc_panturrilha_map = {
+                ">33 cm (0)": 0,
+                "<=33 cm (10)": 10
+            }
+
+            sarc_forca_label = "Selecione..."
+            sarc_ajuda_label = "Selecione..."
+            sarc_levantar_label = "Selecione..."
+            sarc_escadas_label = "Selecione..."
+            sarc_quedas_label = "Selecione..."
+            sarc_panturrilha_label = "Selecione..."
+            if editing:
+                def _label_from_value(valor, mapa):
+                    if valor is None:
+                        return "Selecione..."
+                    for k, v in mapa.items():
+                        if v == valor:
+                            return k
+                    return "Selecione..."
+
+                sarc_forca_label = _label_from_value(edit_data.get("sarc_f_forca"), sarc_forca_map)
+                sarc_ajuda_label = _label_from_value(edit_data.get("sarc_f_ajuda_caminhar"), sarc_ajuda_map)
+                sarc_levantar_label = _label_from_value(edit_data.get("sarc_f_levantar_cadeira"), sarc_levantar_map)
+                sarc_escadas_label = _label_from_value(edit_data.get("sarc_f_subir_escadas"), sarc_escadas_map)
+                sarc_quedas_label = _label_from_value(edit_data.get("sarc_f_quedas"), sarc_quedas_map)
+                sarc_panturrilha_label = _label_from_value(edit_data.get("sarc_f_panturrilha"), sarc_panturrilha_map)
+
             def _sarc_index(opcoes, valor):
                 try:
                     return opcoes.index(valor)
@@ -866,46 +907,6 @@ def render_avaliacao_clinica_funcional():
                 if valor == "Selecione...":
                     return None
                 return opcoes.get(valor)
-
-            sarc_forca_map = {
-                "Nenhuma (0)": 0,
-                "Alguma (1)": 1,
-                "Muita ou não consegue (2)": 2
-            }
-            sarc_ajuda_map = sarc_forca_map
-            sarc_levantar_map = sarc_forca_map
-            sarc_escadas_map = sarc_forca_map
-            sarc_quedas_map = {
-                "Nenhuma (0)": 0,
-                "1-3 quedas (1)": 1,
-                "4 ou mais quedas (2)": 2
-            }
-            sarc_panturrilha_map = {
-                ">33 cm (0)": 0,
-                "<=33 cm (10)": 10
-            }
-
-            sarc_forca_label = "Selecione..."
-            sarc_ajuda_label = "Selecione..."
-            sarc_levantar_label = "Selecione..."
-            sarc_escadas_label = "Selecione..."
-            sarc_quedas_label = "Selecione..."
-            sarc_panturrilha_label = "Selecione..."
-            if editing:
-                def _label_from_value(valor, mapa):
-                    if valor is None:
-                        return "Selecione..."
-                    for k, v in mapa.items():
-                        if v == valor:
-                            return k
-                    return "Selecione..."
-
-                sarc_forca_label = _label_from_value(edit_data.get("sarc_f_forca"), sarc_forca_map)
-                sarc_ajuda_label = _label_from_value(edit_data.get("sarc_f_ajuda_caminhar"), sarc_ajuda_map)
-                sarc_levantar_label = _label_from_value(edit_data.get("sarc_f_levantar_cadeira"), sarc_levantar_map)
-                sarc_escadas_label = _label_from_value(edit_data.get("sarc_f_subir_escadas"), sarc_escadas_map)
-                sarc_quedas_label = _label_from_value(edit_data.get("sarc_f_quedas"), sarc_quedas_map)
-                sarc_panturrilha_label = _label_from_value(edit_data.get("sarc_f_panturrilha"), sarc_panturrilha_map)
 
             dados_clinica = {
                 "data": data_avaliacao,
